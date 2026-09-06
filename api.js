@@ -25,7 +25,7 @@
 
   const DEFAULT_BASE_URL = savedCustomUrl
     || (typeof window !== 'undefined' && (window.VITE_API_URL || window.REACT_APP_API_URL || window.API_BASE_URL))
-    || 'http://localhost:8000/api/v1';
+    || 'https://virus-qr4l.onrender.com/api/v1';
 
 
   const DEFAULT_TIMEOUT_MS = 12000; // 12 seconds timeout
@@ -94,7 +94,7 @@
       }
       // Network or CORS connection error
       throw new ApiError(
-        'Không thể kết nối đến máy chủ API Backend (Network Error / CORS). Hãy đảm bảo server FastAPI đang chạy tại http://localhost:8000',
+        `Không thể kết nối đến máy chủ API Backend (${FluApiClient?.baseURL || 'https://virus-qr4l.onrender.com/api/v1'}). Hãy kiểm tra kết nối mạng hoặc trạng thái Render.`,
         0
       );
     }

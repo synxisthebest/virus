@@ -361,7 +361,8 @@
       }
     } catch (err) {
       isApiOnline = false;
-      updateApiStatus('offline', '🔴 Backend Offline (http://localhost:8000)');
+      const hostDisplay = FluApiClient?.baseURL ? FluApiClient.baseURL.replace(/^https?:\/\//, '').replace(/\/api\/v1\/?$/, '') : 'Backend';
+      updateApiStatus('offline', `🔴 Backend Offline (${hostDisplay})`);
     }
   }
 

@@ -631,11 +631,42 @@
         </div>
       </div>
 
-      <!-- 2. 7-Day Timeline Controller & Playback Animation -->
+      <!-- 2. Timeline Controller & Playback Animation (7 - 30 Ngày) -->
       <div class="sim-timeline-card">
+        <!-- Forecast Horizon Selector Bar (7 - 30 ngày) -->
+        <div class="horizon-selector-container">
+          <div class="horizon-header-row">
+            <div class="horizon-title">
+              <span class="horizon-icon">⏱️</span>
+              <div>
+                <strong>Khoảng thời gian dự báo:</strong>
+                <span class="horizon-badge" id="horizonDisplayBadge">7 ngày (Chu kỳ ngắn)</span>
+              </div>
+            </div>
+            <!-- Segmented Quick Buttons -->
+            <div class="horizon-segmented-group">
+              <button type="button" class="btn-horizon active" id="btnHorizon7" onclick="window.setForecastHorizon(7)">
+                7 ngày
+              </button>
+              <button type="button" class="btn-horizon" id="btnHorizon14" onclick="window.setForecastHorizon(14)">
+                14 ngày (2 tuần)
+              </button>
+              <button type="button" class="btn-horizon" id="btnHorizon30" onclick="window.setForecastHorizon(30)">
+                30 ngày (1 tháng)
+              </button>
+            </div>
+          </div>
+          <!-- Custom Slider 7 - 30 Days -->
+          <div class="horizon-slider-row">
+            <span class="slider-label">Tùy chỉnh:</span>
+            <input type="range" id="horizonCustomSlider" min="7" max="30" value="7" step="1" class="horizon-range-input" oninput="window.handleHorizonSliderChange(this.value)">
+            <span class="slider-val-badge" id="horizonSliderValue">7 ngày</span>
+          </div>
+        </div>
+
         <div class="timeline-header-row">
           <div>
-            <span class="timeline-tag">📅 TRỤC THỜI GIAN MÔ PHỎNG 2 BUỔI/NGÀY (Ủ BỆNH 2 NGÀY & CÁCH LY)</span>
+            <span class="timeline-tag">📅 TRỤC THỜI GIAN MÔ PHỎNG 2 BUỔI/NGÀY (Ủ BỆNH 2 NGÀY, CÁCH LY 5 NGÀY & KHỎI BỆNH)</span>
             <h3 id="currentDayTitle">Ngày 0: Khởi phát ổ dịch (F0 trong lớp)</h3>
           </div>
           <div class="timeline-playback-btns">
@@ -648,21 +679,14 @@
         </div>
 
         <div class="sim-slider-track-wrap">
-          <input type="range" id="simDaySlider" min="0" max="7" value="0" step="1" class="sim-slider">
-          <div class="sim-slider-ticks">
-            <span class="tick active" onclick="jumpToSimDay(0)"><strong>Ngày 0</strong><small>F0 Có Mặt</small></span>
-            <span class="tick" onclick="jumpToSimDay(1)"><strong>Ngày 1</strong><small>Ủ bệnh</small></span>
-            <span class="tick" onclick="jumpToSimDay(2)"><strong>Ngày 2</strong><small>F0 Phát Bệnh</small></span>
-            <span class="tick" onclick="jumpToSimDay(3)"><strong>Ngày 3</strong><small>Cách ly</small></span>
-            <span class="tick" onclick="jumpToSimDay(4)"><strong>Ngày 4</strong><small>Theo dõi</small></span>
-            <span class="tick" onclick="jumpToSimDay(5)"><strong>Ngày 5</strong><small>Lan tỏa</small></span>
-            <span class="tick" onclick="jumpToSimDay(6)"><strong>Ngày 6</strong><small>Kiểm soát</small></span>
-            <span class="tick" onclick="jumpToSimDay(7)"><strong>Ngày 7</strong><small>Tuần 1</small></span>
+          <input type="range" id="simDaySlider" min="0" max="7" value="0" step="1" class="sim-slider" oninput="window.jumpToSimDay(parseInt(this.value))">
+          <div class="sim-slider-ticks" id="simSliderTicksContainer">
+            <!-- Dynamically generated ticks -->
           </div>
         </div>
       </div>
 
-      <!-- 3. Current Day Statistics Dashboard (Guaranteed strictly <= Class Capacity) -->
+      <!-- 3. Current Day Statistics Dashboard (SEIR + Recovery State) -->
       <div class="cr-summary-dashboard">
         <div class="cr-summary-card">
           <div class="cr-sum-label">👥 Tổng sĩ số lớp</div>
@@ -672,18 +696,25 @@
         <div class="cr-summary-card highlight-sick">
           <div class="cr-sum-label">🚨 F0 phát bệnh hôm nay</div>
           <div class="cr-sum-val" id="sumClassNewF0">1</div>
+          <div class="cr-sum-sub">Có mặt trong lớp</div>
         </div>
 
         <div class="cr-summary-card" style="background:#fffbeb; border-color:#fde68a;">
           <div class="cr-sum-label" style="color:#b45309;">🟡 Đang ủ bệnh (2 ngày)</div>
           <div class="cr-sum-val" id="sumClassExposed" style="color:#d97706;">0</div>
-          <div class="cr-sum-sub">Chưa có triệu chứng</div>
+          <div class="cr-sum-sub">Chưa triệu chứng</div>
         </div>
 
         <div class="cr-summary-card highlight-risk">
-          <div class="cr-sum-label">🏠 Cách ly nghỉ học</div>
+          <div class="cr-sum-label">🏠 Nghỉ cách ly hôm nay</div>
           <div class="cr-sum-val" id="sumClassTotalAbsent">0</div>
           <div class="cr-sum-sub" id="sumClassAbsentPercent">0.0% sĩ số</div>
+        </div>
+
+        <div class="cr-summary-card" style="background:#f0fdf4; border-color:#86efac;">
+          <div class="cr-sum-label" style="color:#15803d;">🛡️ Đã khỏi (Kháng thể)</div>
+          <div class="cr-sum-val" id="sumClassRecovered" style="color:#16a34a;">0</div>
+          <div class="cr-sum-sub">Hồi phục an toàn</div>
         </div>
 
         <div class="cr-summary-card">
@@ -709,9 +740,10 @@
 
           <!-- State Legend -->
           <div class="cr-heatmap-legend">
-            <span class="cr-legend-item"><span class="legend-dot f0-new-dot"></span> 🚨 F0 Đang phát bệnh trong lớp</span>
-            <span class="cr-legend-item"><span class="legend-dot exposed-dot"></span> 🟡 Đang ủ bệnh (Exposed - Chưa lây)</span>
-            <span class="cr-legend-item"><span class="legend-dot f0-old-dot"></span> 🏠 Đã cách ly nghỉ học ở nhà</span>
+            <span class="cr-legend-item"><span class="legend-dot f0-new-dot"></span> 🚨 F0 Phát bệnh trong lớp</span>
+            <span class="cr-legend-item"><span class="legend-dot exposed-dot"></span> 🟡 Đang ủ bệnh (Chưa lây)</span>
+            <span class="cr-legend-item"><span class="legend-dot f0-old-dot"></span> 🏠 Nghỉ cách ly ở nhà</span>
+            <span class="cr-legend-item"><span class="legend-dot recovered-dot"></span> 🛡️ Đã khỏi bệnh (Có kháng thể)</span>
             <span class="cr-legend-item"><span class="legend-dot healthy-dot"></span> 🟢 Học sinh khỏe mạnh</span>
           </div>
 
@@ -733,13 +765,13 @@
       </div>
 
 
-      <!-- 5. 7-Day Progression Statistics Table -->
+      <!-- 5. Progression Statistics Table -->
       <div class="sim-table-wrap">
         <h4 style="font-family:var(--font-main); font-weight:800; font-size:1.05rem; margin-bottom:12px; color:var(--slate-900);">
-          📋 Bảng Tổng Hợp Diễn Biến Dịch 7 Ngày Trong Lớp Học
+          📋 Bảng Tổng Hợp Diễn Biến Dịch <span id="tableHorizonSpan">7</span> Ngày Trong Lớp Học
         </h4>
         <p style="font-size:0.82rem; color:var(--slate-500); margin-bottom:14px;">
-          Số liệu kiểm soát theo mô hình tác nhân (Agent-Based): Mỗi học sinh chỉ bị nhiễm 1 lần, tổng số ca nghỉ học tích lũy không bao giờ vượt quá sĩ số lớp (<span id="tableCapacitySpan">30</span>).
+          Mô hình SEIR mở rộng (Ủ bệnh 2 ngày, phát bệnh 1 ngày, cách ly 5 ngày, hồi phục có kháng thể bền vững). Tổng số ca kiểm soát thực tế không vượt quá sĩ số lớp (<span id="tableCapacitySpan">30</span>).
         </p>
 
         <div class="data-table-container">
@@ -750,7 +782,8 @@
                 <th>Ca nhiễm mới (Ủ bệnh)</th>
                 <th>Đang ủ bệnh (2 ngày)</th>
                 <th>F0 phát bệnh trong lớp</th>
-                <th>Cách ly nghỉ học ở nhà</th>
+                <th>Nghỉ cách ly ở nhà</th>
+                <th>Đã khỏi (Kháng thể)</th>
                 <th>Còn khỏe mạnh</th>
                 <th>Tỷ lệ nghỉ học (%)</th>
                 <th>Cấp độ dịch</th>
@@ -790,7 +823,11 @@
             <h3 id="chartTitle">📅 Số ca mắc cúm theo ngày</h3>
             <div class="chart-subtitle" id="chartSubtitle" style="margin-bottom:0;">Cột càng cao = càng nhiều ca · Màu sắc thể hiện mức độ & ngày tương lai</div>
           </div>
-          <button type="button" class="btn-sim" style="font-size:0.75rem;" onclick="generateFutureRecords()">🔮 Tự động dự báo 7 ngày</button>
+          <div class="chart-action-btns">
+            <button type="button" class="btn-sim" style="font-size:0.75rem;" onclick="generateFutureRecords(7)">🔮 Dự báo 7 ngày</button>
+            <button type="button" class="btn-sim" style="font-size:0.75rem; background:#6366f1;" onclick="generateFutureRecords(14)">🔮 14 ngày</button>
+            <button type="button" class="btn-sim" style="font-size:0.75rem; background:#059669;" onclick="generateFutureRecords(30)">🔮 30 ngày</button>
+          </div>
         </div>
 
         <div class="chart-legend-bar">
@@ -1068,14 +1105,15 @@
     }
 
     /**
-     * Tự động dự báo 7 ngày tiếp theo theo mô hình dịch tễ Wells-Riley
+     * Tự động dự báo dịch từ 7 đến 30 ngày theo mô hình dịch tễ Wells-Riley SEIR (Peak & Recovery)
      */
-    function handleAutoPredict7Days() {
+    function handleAutoPredict(horizonDays) {
+      var daysToPredict = Math.max(7, Math.min(30, parseInt(horizonDays) || 7));
       var records = getRecords();
       var today = new Date();
       today.setHours(0,0,0,0);
 
-      // Lấy số ca F0 hiện tại hoặc trung bình quá khứ
+      // Lấy số ca F0 hiện tại hoặc trung bình quá khứ gần nhất
       var recentPast = records.filter(function(r) {
         var rd = new Date(r.date);
         rd.setHours(0,0,0,0);
@@ -1090,8 +1128,11 @@
         baseCases = Math.max(1, Math.round(sum / count));
       }
 
-      // Dự báo 7 ngày tương lai theo chu kỳ dịch
-      for (var day = 1; day <= 7; day++) {
+      // Mô hình dịch tễ có đỉnh dịch (Peak) và hồi phục (Recovery - miễn dịch)
+      // Đỉnh dịch xảy ra ở khoảng 35% - 40% chu kỳ bùng phát (thường ngày 4 - 8)
+      var peakDay = Math.min(7, Math.max(4, Math.round(daysToPredict * 0.35)));
+
+      for (var day = 1; day <= daysToPredict; day++) {
         var futureD = new Date(today);
         futureD.setDate(futureD.getDate() + day);
         var fKey = fmtDate(futureD);
@@ -1101,11 +1142,26 @@
           if (records[k].date === fKey) { foundIdx = k; break; }
         }
 
-        // Mô hình tăng trưởng rồi thoái lui sau can thiệp
-        var growthFactor = day <= 3 ? (day * 1.2) : ((7 - day) * 0.9);
-        var simCases = Math.max(1, Math.round(baseCases + growthFactor + (Math.sin(day) * 1.2)));
-        var simAbsent = Math.min(30, Math.round(simCases * 1.4));
-        var sev = simCases > 15 ? 'high' : (simCases > 5 ? 'medium' : 'low');
+        // Mô hình đường cong dịch tễ chuông lệch (Epidemic Bell Curve with Recovery):
+        // Giai đoạn 1: Tăng trưởng lũy thừa ban đầu
+        // Giai đoạn 2: Đạt đỉnh bùng phát (Peak)
+        // Giai đoạn 3: Thoái lui do cách ly F0 + khỏi bệnh có kháng thể
+        var curveRatio;
+        if (day <= peakDay) {
+          curveRatio = Math.sin((day / peakDay) * (Math.PI / 2));
+        } else {
+          var progressAfterPeak = (day - peakDay) / Math.max(1, daysToPredict - peakDay);
+          curveRatio = Math.exp(-progressAfterPeak * 2.8);
+        }
+
+        var peakMagnitude = Math.min(18, baseCases * 2.8 + 3);
+        var simCases = Math.max(0, Math.round(baseCases + (peakMagnitude - baseCases) * curveRatio + (Math.sin(day * 1.5) * 0.7)));
+        if (day > 18 && simCases < 1) {
+          simCases = (day % 5 === 0 ? 1 : 0); // rải rác ca nhẹ sau đỉnh dịch
+        }
+
+        var simAbsent = Math.min(32, Math.round(simCases * 1.35 + (day > 3 && day < 12 ? 3 : 0)));
+        var sev = simCases > 12 ? 'high' : (simCases > 4 ? 'medium' : 'low');
 
         var newRec = {
           date: fKey,
@@ -1113,7 +1169,7 @@
           absent: simAbsent,
           location: 'Phòng học 11A',
           severity: sev,
-          note: '🔮 Dự báo Wells–Riley (+' + day + ' ngày)'
+          note: '🔮 Dự báo SEIR (+' + day + ' ngày' + (day === peakDay ? ' - Đỉnh dịch' : (day > 10 ? ' - Thoái trào' : '')) + ')'
         };
 
         if (foundIdx >= 0) {
@@ -1129,12 +1185,13 @@
       render30DayChart();
 
       if (window.FluUi && window.FluUi.showToast) {
-        window.FluUi.showToast('🔮 Đã tự động dự báo thành công 7 ngày tới và cập nhật lên biểu đồ!', 'success');
+        window.FluUi.showToast('🔮 Đã tự động dự báo thành công ' + daysToPredict + ' ngày với diễn tiến Đỉnh dịch & Hồi phục!', 'success');
       }
     }
 
-    var generateFutureRecords = handleAutoPredict7Days;
-    window.handleAutoPredict7Days = handleAutoPredict7Days;
+    var generateFutureRecords = handleAutoPredict;
+    window.handleAutoPredict = handleAutoPredict;
+    window.handleAutoPredict7Days = handleAutoPredict;
     window.generateFutureRecords = generateFutureRecords;
 
 
@@ -1374,7 +1431,9 @@
         }
 
         var lblCls = 'day-label' + (day.isToday ? ' is-today' : (day.isFuture ? ' is-future' : ''));
-        var showLabel = days.length <= 20 || (idx % (days.length > 50 ? 4 : 2) === 0) || day.isToday;
+        var isMobileScreen = window.innerWidth <= 768;
+        var stepInterval = isMobileScreen ? (days.length > 30 ? 6 : (days.length > 15 ? 3 : 2)) : (days.length > 50 ? 4 : 2);
+        var showLabel = (days.length <= 10) || (idx % stepInterval === 0) || day.isToday;
         if (showLabel) {
           html += '<span class="' + lblCls + '">' + day.label + '</span>';
         } else {

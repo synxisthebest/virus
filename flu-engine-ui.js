@@ -1317,7 +1317,113 @@
    * 3. Combined Daily Non-Transmission Formula: $(1 - P_{m})(1 - P_{a})$
    * 4. Stochastic Bernoulli Trials per day
    */
-  function run7DaySimulation() {
+  // Forecast Horizon (7 to 30 days)
+  let simHorizonDays = 7;
+
+  function setForecastHorizon(days) {
+    const d = Math.max(7, Math.min(30, parseInt(days) || 7));
+    simHorizonDays = d;
+
+    // Update segmented buttons
+    ['btnHorizon7', 'btnHorizon14', 'btnHorizon30'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.classList.remove('active');
+    });
+    if (d === 7) document.getElementById('btnHorizon7')?.classList.add('active');
+    else if (d === 14) document.getElementById('btnHorizon14')?.classList.add('active');
+    else if (d === 30) document.getElementById('btnHorizon30')?.classList.add('active');
+
+    // Update custom slider & badges
+    const slider = document.getElementById('horizonCustomSlider');
+    if (slider) slider.value = d;
+    const sliderVal = document.getElementById('horizonSliderValue');
+    if (sliderVal) sliderVal.textContent = `${d} ngày`;
+
+    const displayBadge = document.getElementById('horizonDisplayBadge');
+    if (displayBadge) {
+      displayBadge.textContent = d === 7 ? '7 ngày (Chu kỳ ngắn)' : (d === 14 ? '14 ngày (2 tuần)' : (d === 30 ? '30 ngày (1 tháng)' : `${d} ngày tùy chỉnh`));
+    }
+
+    const tableHorizonSpan = document.getElementById('tableHorizonSpan');
+    if (tableHorizonSpan) tableHorizonSpan.textContent = d;
+
+    const simDaySlider = document.getElementById('simDaySlider');
+    if (simDaySlider) {
+      simDaySlider.max = d;
+      if (currentSimDay > d) currentSimDay = d;
+    }
+
+    updatePlayButtonUI(false);
+    runEpidemicSimulation();
+    showToast(`⏱️ Đã chuyển chu kỳ dự báo sang ${d} ngày!`, 'info');
+  }
+
+  function handleHorizonSliderChange(val) {
+    const d = parseInt(val) || 7;
+    setForecastHorizon(d);
+  }
+
+  /**
+   * Generates dynamic slider ticks for the timeline slider
+   */
+  function renderSliderTicks(horizon, activeDay) {
+    const container = document.getElementById('simSliderTicksContainer');
+    if (!container) return;
+
+    let step = 1;
+    if (horizon > 20) step = 5;
+    else if (horizon > 10) step = 2;
+
+    const tickDays = [];
+    for (let i = 0; i <= horizon; i += step) {
+      tickDays.push(i);
+    }
+    if (tickDays[tickDays.length - 1] !== horizon) {
+      tickDays.push(horizon);
+    }
+
+    let html = '';
+    tickDays.forEach(d => {
+      const isActive = d === activeDay ? 'active' : '';
+      let subLabel = '';
+      if (d === 0) subLabel = 'F0 Có Mặt';
+      else if (d === 2) subLabel = 'Phát Bệnh';
+      else if (d === 7) subLabel = 'Tuần 1';
+      else if (d === 14) subLabel = 'Tuần 2';
+      else if (d === 30) subLabel = '1 Tháng';
+
+      html += `
+        <span class="tick ${isActive}" onclick="window.jumpToSimDay(${d})">
+          <strong>Ngày ${d}</strong>
+          ${subLabel ? `<small>${subLabel}</small>` : ''}
+        </span>
+      `;
+    });
+
+    container.innerHTML = html;
+  }
+
+  function getDayTitle(dayIndex, horizon) {
+    if (dayIndex === 0) return 'Ngày 0: Khởi phát ổ dịch (F0 có mặt trong lớp)';
+    if (dayIndex === 1) return 'Ngày 1: F0 ban đầu nghỉ cách ly ở nhà, các ca lây bắt đầu ủ bệnh';
+    if (dayIndex === 2) return 'Ngày 2: Ca F0 thứ phát phát bệnh trong lớp (+2 ngày ủ bệnh)';
+    if (dayIndex === 3) return 'Ngày 3: Ca F0 thứ phát nghỉ cách ly, theo dõi tiếp xúc 2 ca';
+    if (dayIndex <= 5) return `Ngày ${dayIndex}: Tiếp tục theo dõi chu kỳ ủ bệnh & cách ly điều trị`;
+    if (dayIndex === 7) return `Ngày 7: F0 ban đầu bắt đầu hồi phục, xuất hiện kháng thể`;
+    if (dayIndex <= 10) return `Ngày ${dayIndex}: Đợt lây nhiễm đạt đỉnh (Peak) và bắt đầu thoái trào`;
+    if (dayIndex <= 14) return `Ngày ${dayIndex}: Đa số ca cách ly đã khỏi bệnh, số ca trong lớp giảm rõ rệt`;
+    return `Ngày ${dayIndex}: Ổ dịch thoái lui hoàn toàn, lớp học an toàn trở lại`;
+  }
+
+  /**
+   * Executes Epidemic Simulation over the specified horizon (7 to 30 days)
+   * Integrates:
+   * 1. Morning Session Wells-Riley ($t_{morning}, Q_{morning}, \vec{X}_{morning, i}$)
+   * 2. Afternoon Session Wells-Riley ($t_{afternoon}, Q_{afternoon}, \vec{X}_{afternoon, i}$)
+   * 3. Combined Daily Formula: $P = 1 - (1 - P_m)(1 - P_a)$
+   * 4. Extended SEIR Dynamics: Susceptible -> Exposed (2d) -> Infectious (1d in class) -> Isolated (5d at home) -> Recovered (Immune)
+   */
+  function runEpidemicSimulation() {
     const km = parseFloat(document.getElementById('cr_km')?.value || '1.0');
     const kh = 1.0;
     const p = 0.50;
@@ -1337,7 +1443,7 @@
 
     simHistory = [];
 
-    // Track dynamic infection schedule for each student: student.id -> dayInfected
+    // Track infection day: student.id -> dayInfected
     const studentInfectionDay = new Map();
     baseStudents.forEach(st => {
       if (initialF0StudentIds.has(st.id)) {
@@ -1358,11 +1464,11 @@
     let avgCombinedRiskDay0 = 0;
     let countedSusceptibleDay0 = 0;
 
-    // Step through Day 0 to Day 7
-    for (let day = 0; day <= 7; day++) {
+    // Step through Day 0 to Day simHorizonDays
+    for (let day = 0; day <= simHorizonDays; day++) {
       let newlyInfectedToday = 0;
 
-      // 1. Determine each student's health status on `day`
+      // 1. Determine each student's health status on `day` (SEIR + Recovery Rule)
       const currentDayStudents = baseStudents.map(st => {
         const infDay = studentInfectionDay.get(st.id);
         let status = 'HEALTHY';
@@ -1370,11 +1476,13 @@
         if (infDay !== null) {
           const daysSinceInfection = day - infDay;
           if (daysSinceInfection < 2) {
-            status = 'EXPOSED';
+            status = 'EXPOSED'; // Ủ bệnh (2 ngày đầu, chưa có triệu chứng)
           } else if (daysSinceInfection === 2) {
-            status = 'INFECTED';
+            status = 'INFECTED'; // Phát bệnh & lây lan trong lớp học ngày hôm nay
+          } else if (daysSinceInfection > 2 && daysSinceInfection <= 7) {
+            status = 'ISOLATED'; // Cách ly nghỉ học tại nhà 5 ngày
           } else {
-            status = 'ISOLATED';
+            status = 'RECOVERED'; // Khỏi bệnh sau 7 ngày nhiễm, có kháng thể miễn dịch, an toàn & không tái nhiễm
           }
         }
 
@@ -1390,14 +1498,14 @@
         };
       });
 
-      // Active F0 in classroom today
+      // Active F0 in classroom today (chỉ người đang INFECTED mới có mặt trong lớp và phát tán aerosol)
       const activeF0Students = currentDayStudents.filter(s => s.status === 'INFECTED');
 
       // 2. Compute Multi-Session Infection Exposure if F0 is present in class
-      if (activeF0Students.length > 0 && day < 7) {
+      if (activeF0Students.length > 0 && day < simHorizonDays) {
         currentDayStudents.forEach(agent => {
           if (agent.status === 'HEALTHY' && studentInfectionDay.get(agent.id) === null) {
-            // A. Morning Session Dose Calculation (using Morning Layout Coordinates)
+            // A. Morning Session Dose Calculation
             let morningDose = 0.0;
             activeF0Students.forEach(f0 => {
               const distM = Math.sqrt(Math.pow(agent.morningPos.x - f0.morningPos.x, 2) + Math.pow(agent.morningPos.y - f0.morningPos.y, 2));
@@ -1410,7 +1518,7 @@
             });
             const pMorning = 1.0 - Math.exp(-morningDose);
 
-            // B. Afternoon Session Dose Calculation (using Afternoon Layout Coordinates)
+            // B. Afternoon Session Dose Calculation
             let afternoonDose = 0.0;
             activeF0Students.forEach(f0 => {
               const distA = Math.sqrt(Math.pow(agent.afternoonPos.x - f0.afternoonPos.x, 2) + Math.pow(agent.afternoonPos.y - f0.afternoonPos.y, 2));
@@ -1423,7 +1531,7 @@
             });
             const pAfternoon = 1.0 - Math.exp(-afternoonDose);
 
-            // C. Combined Daily Probability: P_total = 1 - (1 - P_morning) * (1 - P_afternoon)
+            // C. Combined Daily Probability
             const pCombined = 1.0 - ((1.0 - pMorning) * (1.0 - pAfternoon));
 
             agent.riskMorning = Math.round(pMorning * 1000) / 10;
@@ -1437,7 +1545,7 @@
               countedSusceptibleDay0++;
             }
 
-            // Stochastic Bernoulli Trial using combined daily probability
+            // Stochastic Bernoulli Trial
             const randVal = pseudoRandom();
             if (randVal < pCombined) {
               studentInfectionDay.set(agent.id, day);
@@ -1451,6 +1559,8 @@
       currentDayStudents.forEach(agent => {
         if (agent.status === 'INFECTED') {
           agent.risk = 100.0;
+        } else if (agent.status === 'RECOVERED') {
+          agent.risk = 0.0;
         } else if (riskViewMode === 'morning') {
           agent.risk = agent.riskMorning;
         } else if (riskViewMode === 'afternoon') {
@@ -1464,12 +1574,14 @@
       let totalExposed = 0;
       let totalInfectious = 0;
       let totalIsolated = 0;
+      let totalRecovered = 0;
       let totalHealthy = 0;
 
       currentDayStudents.forEach(agent => {
         if (agent.status === 'EXPOSED') totalExposed++;
         else if (agent.status === 'INFECTED') totalInfectious++;
         else if (agent.status === 'ISOLATED') totalIsolated++;
+        else if (agent.status === 'RECOVERED') totalRecovered++;
         else totalHealthy++;
       });
 
@@ -1478,15 +1590,18 @@
 
       let statusLabel = '🟢 An toàn';
       let statusClass = 'safe';
-      if (absentPercent >= 40.0) {
-        statusLabel = '🟣 Đỉnh dịch (Nặng)';
+      if (absentPercent >= 35.0) {
+        statusLabel = '🟣 Đỉnh dịch (Nhiều ca)';
         statusClass = 'critical';
       } else if (totalInfectious > 1 || absentPercent >= 15.0) {
         statusLabel = '🔴 Bùng phát lây lan';
         statusClass = 'danger';
       } else if (totalInfectious > 0 || totalExposed > 0) {
-        statusLabel = '🟡 Khởi phát ổ dịch';
+        statusLabel = '🟡 Có ca lây nhiễm';
         statusClass = 'warning';
+      } else if (totalRecovered > 0 && totalInfectious === 0 && totalExposed === 0) {
+        statusLabel = '🟢 Dập tắt dịch';
+        statusClass = 'safe';
       }
 
       simHistory.push({
@@ -1496,6 +1611,7 @@
         totalExposed,
         totalInfectious,
         totalIsolated,
+        totalRecovered,
         totalAbsent,
         totalHealthy,
         absentPercent,
@@ -1529,13 +1645,18 @@
       }
     }
 
-    // Render current day view and 7-day table
+    // Render dynamic ticks for current horizon
+    renderSliderTicks(simHorizonDays, currentSimDay);
+
+    // Render current day view and progression table
     renderSimDayView(currentSimDay);
     render7DayProgressionTable();
   }
 
+  const run7DaySimulation = runEpidemicSimulation;
+
   /**
-   * Renders Classroom View for a specific Day (0 - 7)
+   * Renders Classroom View for a specific Day (0 - simHorizonDays)
    */
   function renderSimDayView(dayIndex) {
     if (dayIndex < 0 || dayIndex >= simHistory.length) return;
@@ -1545,25 +1666,19 @@
     if (!snap) return;
 
     // Update Day Title & Slider
-    const dayTitles = [
-      'Ngày 0: Khởi phát ổ dịch (F0 có mặt trong cả 2 ca sáng & chiều)',
-      'Ngày 1: F0 ban đầu nghỉ cách ly ở nhà, các ca lây bắt đầu ủ bệnh',
-      'Ngày 2: Ca F0 thứ phát phát bệnh trong lớp (+2 ngày ủ bệnh)',
-      'Ngày 3: Ca F0 thứ phát nghỉ cách ly, theo dõi tiếp xúc 2 ca',
-      'Ngày 4: Tiếp tục theo dõi chu kỳ ủ bệnh thế hệ tiếp theo',
-      'Ngày 5: Đánh giá nguy cơ lây lan thứ phát',
-      'Ngày 6: Kiểm soát và khoanh vùng ổ dịch lớp học',
-      'Ngày 7: Tổng kết kết quả sau 1 tuần can thiệp thông gió 2 ca',
-    ];
     const elTitle = document.getElementById('currentDayTitle');
-    if (elTitle) elTitle.textContent = dayTitles[dayIndex] || `Ngày ${dayIndex}`;
+    if (elTitle) elTitle.textContent = getDayTitle(dayIndex, simHorizonDays);
 
     const elSlider = document.getElementById('simDaySlider');
-    if (elSlider) elSlider.value = dayIndex;
+    if (elSlider) {
+      elSlider.max = simHorizonDays;
+      elSlider.value = dayIndex;
+    }
 
     // Update Slider Ticks highlight
-    document.querySelectorAll('.sim-slider-ticks .tick').forEach((tick, idx) => {
-      if (idx === dayIndex) tick.classList.add('active');
+    document.querySelectorAll('#simSliderTicksContainer .tick').forEach((tick) => {
+      const dayNum = parseInt(tick.querySelector('strong')?.textContent?.replace(/\D/g, '') || '-1');
+      if (dayNum === dayIndex) tick.classList.add('active');
       else tick.classList.remove('active');
     });
 
@@ -1573,6 +1688,7 @@
     const elSumExposed = document.getElementById('sumClassExposed');
     const elSumTotalAbsent = document.getElementById('sumClassTotalAbsent');
     const elSumAbsentPercent = document.getElementById('sumClassAbsentPercent');
+    const elSumRecovered = document.getElementById('sumClassRecovered');
     const elSumHealthy = document.getElementById('sumClassHealthyRemaining');
     const elSumHealthyPercent = document.getElementById('sumClassHealthyPercent');
 
@@ -1581,13 +1697,14 @@
     if (elSumExposed) elSumExposed.textContent = snap.totalExposed;
     if (elSumTotalAbsent) elSumTotalAbsent.textContent = snap.totalAbsent;
     if (elSumAbsentPercent) elSumAbsentPercent.textContent = `${snap.absentPercent.toFixed(1)}% sĩ số`;
+    if (elSumRecovered) elSumRecovered.textContent = snap.totalRecovered || 0;
     if (elSumHealthy) elSumHealthy.textContent = snap.totalHealthy;
     if (elSumHealthyPercent) elSumHealthyPercent.textContent = `${((snap.totalHealthy / crTotalStudents) * 100).toFixed(1)}%`;
 
     // Render Classroom Layout (Dãy - Bàn - Ghế) for Active Session
     renderClassroomColumnsDOM(snap.students);
 
-    // Highlight row in 7-day table
+    // Highlight row in progression table
     document.querySelectorAll('#simProgressionTableBody tr').forEach((row, idx) => {
       if (idx === dayIndex) row.classList.add('current-sim-day');
       else row.classList.remove('current-sim-day');
@@ -1654,6 +1771,10 @@
               stateClass = 'isolated-home seat-isolated';
               icon = '🏠';
               statusText = 'Nghỉ cách ly';
+            } else if (studentObj.status === 'RECOVERED') {
+              stateClass = 'recovered seat-recovered';
+              icon = '🛡️';
+              statusText = 'Đã khỏi';
             }
 
             const studentLabel = `${studentObj.name}`;
@@ -1701,7 +1822,7 @@
   }
 
   /**
-   * Renders the 7-Day Epidemic Progression Table with SEIR Columns
+   * Renders Epidemic Progression Table with SEIR Columns
    */
   function render7DayProgressionTable() {
     const tbody = document.getElementById('simProgressionTableBody');
@@ -1717,7 +1838,8 @@
           <td style="color:#f59e0b; font-weight:700;">+${snap.newCases} ca</td>
           <td><span style="color:#b45309; font-weight:700;">${snap.totalExposed} HS</span></td>
           <td><strong style="color:#ef4444;">${snap.totalInfectious} HS</strong></td>
-          <td><strong style="color:#64748b;">${snap.totalIsolated}</strong> / ${crTotalStudents} HS</td>
+          <td><strong style="color:#64748b;">${snap.totalIsolated}</strong> HS</td>
+          <td><span style="color:#16a34a; font-weight:700;">${snap.totalRecovered || 0} HS</span></td>
           <td><strong style="color:#10b981;">${snap.totalHealthy}</strong> HS</td>
           <td>${snap.absentPercent.toFixed(1)}%</td>
           <td><span class="badge-status ${snap.statusClass}">${snap.statusLabel}</span></td>
@@ -1749,7 +1871,7 @@
       showToast(`🔴 Đã chọn HS ${studentId} là ca F0 khởi phát!`, 'warning');
     }
 
-    run7DaySimulation();
+    runEpidemicSimulation();
   }
 
   function handleToggleF0(seatKey, studentId) {
@@ -1773,12 +1895,12 @@
   function stepSimulationDay(delta) {
     let nextDay = currentSimDay + delta;
     if (nextDay < 0) nextDay = 0;
-    if (nextDay > 7) nextDay = 7;
+    if (nextDay > simHorizonDays) nextDay = simHorizonDays;
     jumpToSimDay(nextDay);
   }
 
   /**
-   * Toggle 7-day automatic playback
+   * Toggle automatic playback up to simHorizonDays
    */
   function toggleSimulationPlayback() {
     if (isPlaying) {
@@ -1788,26 +1910,27 @@
       updatePlayButtonUI(false);
       showToast('⏸️ Đã tạm dừng mô phỏng.', 'info');
     } else {
-      if (currentSimDay >= 7) {
+      if (currentSimDay >= simHorizonDays) {
         currentSimDay = 0;
         jumpToSimDay(0);
       }
 
       isPlaying = true;
       updatePlayButtonUI(true);
-      showToast('▶ Đang phát mô phỏng diễn biến dịch 7 ngày (2 ca/ngày)...', 'info');
+      showToast(`▶ Đang phát mô phỏng diễn biến dịch ${simHorizonDays} ngày (2 ca/ngày)...`, 'info');
 
+      const intervalMs = simHorizonDays > 14 ? 650 : 900;
       playbackTimer = setInterval(() => {
-        if (currentSimDay < 7) {
+        if (currentSimDay < simHorizonDays) {
           jumpToSimDay(currentSimDay + 1);
         } else {
           clearInterval(playbackTimer);
           playbackTimer = null;
           isPlaying = false;
           updatePlayButtonUI(false);
-          showToast('🎉 Đã hoàn thành phát mô phỏng 7 ngày!', 'success');
+          showToast(`🎉 Đã hoàn thành phát mô phỏng ${simHorizonDays} ngày!`, 'success');
         }
-      }, 1000);
+      }, intervalMs);
     }
   }
 
@@ -1822,7 +1945,7 @@
         btn.style.background = '#f59e0b';
       } else {
         icon.textContent = '▶';
-        text.textContent = 'Phát mô phỏng 7 ngày';
+        text.textContent = `Phát mô phỏng ${simHorizonDays} ngày`;
         btn.style.background = '#10b981';
       }
     }
@@ -1838,7 +1961,7 @@
     if (classRosterSize > 1) initialF0StudentIds.add(id2);
 
     jumpToSimDay(0);
-    run7DaySimulation();
+    runEpidemicSimulation();
     showToast(`🎲 Đã chọn ngẫu nhiên 2 ca F0: HS ${id1} và HS ${id2}!`, 'info');
   }
 
@@ -1846,7 +1969,7 @@
     initialF0StudentIds.clear();
     initialF0StudentIds.add(1);
     jumpToSimDay(0);
-    run7DaySimulation();
+    runEpidemicSimulation();
     showToast('🔄 Đã đặt lại sơ đồ lớp về 1 ca F0 ban đầu tại HS 01.', 'success');
   }
 
@@ -1862,6 +1985,7 @@
     if (studentObj.status === 'INFECTED') statusText = '🚨 F0 Đang phát bệnh trong lớp (Nguồn lây)';
     else if (studentObj.status === 'EXPOSED') statusText = `🟡 Đang ủ bệnh (Nhiễm Ngày ${studentObj.dayInfected} - Chưa có triệu chứng)`;
     else if (studentObj.status === 'ISOLATED') statusText = '🏠 Đã cách ly nghỉ học ở nhà (Không còn lây trong lớp)';
+    else if (studentObj.status === 'RECOVERED') statusText = '🛡️ Đã khỏi bệnh (Có kháng thể miễn dịch - An toàn)';
 
     const sessionLabel = currentSessionView === 'afternoon' ? 'Ca Chiều (Lab)' : 'Ca Sáng (Phòng 11A)';
 
@@ -1869,7 +1993,7 @@
       <strong>HS ${String(studentObj.id).padStart(2, '0')} - ${escapeHtml(studentObj.name)}</strong>
       <div class="tt-row"><span>Vị trí (${sessionLabel}):</span> <span>${seatKey}</span></div>
       <div class="tt-row"><span>Trạng thái:</span> <span>${statusText}</span></div>
-      <div class="tt-row"><span>Mốc thời gian:</span> <span>Ngày ${currentSimDay} / 7</span></div>
+      <div class="tt-row"><span>Mốc thời gian:</span> <span>Ngày ${currentSimDay} / ${simHorizonDays}</span></div>
       ${studentObj.status === 'HEALTHY' ? `
         <div class="tt-row" style="margin-top:4px; padding-top:4px; border-top:1px dashed rgba(255,255,255,0.2);">
           <span>🌅 Rủi ro Ca Sáng:</span> <strong>${studentObj.riskMorning || 0}%</strong>
@@ -1904,6 +2028,9 @@
   }
 
   // Expose global window methods for inline onclick events
+  window.setForecastHorizon = setForecastHorizon;
+  window.handleHorizonSliderChange = handleHorizonSliderChange;
+  window.runEpidemicSimulation = runEpidemicSimulation;
   window.switchSessionView = switchSessionView;
   window.shuffleAfternoonSeating = shuffleAfternoonSeating;
   window.syncAfternoonWithMorningSeating = syncAfternoonWithMorningSeating;
@@ -1916,7 +2043,28 @@
   window.toggleSimulationPlayback = toggleSimulationPlayback;
   window.randomizeInitialF0 = randomizeInitialF0;
   window.resetClassroomToHealthy = resetClassroomToHealthy;
-  window.run7DaySimulation = run7DaySimulation;
+  window.run7DaySimulation = runEpidemicSimulation;
+  window.showSeatTooltipAgent = showSeatTooltipAgent;
+  window.hideSeatTooltip = hideSeatTooltip;
+
+  // Expose global FluUi methods
+  window.FluUi = {
+    checkBackendHealth,
+    handleCalculate,
+    handleReset,
+    handleExportPdf,
+    handleLoadPresets,
+    applyScenarioPreset,
+    promptCustomApiUrl,
+    showToast,
+    run7DaySimulation: runEpidemicSimulation,
+    runEpidemicSimulation,
+    setForecastHorizon,
+    jumpToSimDay,
+    switchSessionView,
+    shuffleAfternoonSeating,
+    syncAfternoonWithMorningSeating,
+  };
   window.showSeatTooltipAgent = showSeatTooltipAgent;
   window.hideSeatTooltip = hideSeatTooltip;
 

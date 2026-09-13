@@ -3984,6 +3984,120 @@ footer {
   border: 1px dashed #c4b5fd;
 }
 
+/* Horizon Selector Bar in Timeline Card */
+.horizon-selector-container {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+}
+
+.horizon-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.horizon-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+
+.horizon-icon {
+  font-size: 1.2rem;
+}
+
+.horizon-badge {
+  display: inline-block;
+  background: #38bdf8;
+  color: #0f172a;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  margin-left: 6px;
+}
+
+.horizon-segmented-group {
+  display: inline-flex;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 3px;
+  border-radius: 12px;
+  gap: 3px;
+}
+
+.btn-horizon {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  border: none;
+  padding: 6px 14px;
+  border-radius: 9px;
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-horizon:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-horizon.active {
+  background: #38bdf8;
+  color: #0f172a;
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.4);
+}
+
+.horizon-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.horizon-range-input {
+  flex: 1;
+  accent-color: #38bdf8;
+  cursor: pointer;
+  height: 6px;
+}
+
+.slider-val-badge {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-weight: 800;
+  color: #38bdf8;
+  min-width: 55px;
+  text-align: center;
+}
+
+/* Recovered Seat State */
+.seat-box.seat-recovered {
+  border-color: #10b981;
+  background: #f0fdf4;
+  color: #065f46;
+}
+
+.seat-box.seat-recovered .seat-name {
+  color: #047857;
+}
+
+.seat-box.seat-recovered .seat-status-pill {
+  background: #dcfce7;
+  color: #15803d;
+}
+
 /* Legend items in classroom */
 .cr-heatmap-legend {
   display: flex;
@@ -4013,6 +4127,7 @@ footer {
 .legend-dot.f0-new-dot { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.5); }
 .legend-dot.exposed-dot { background: #f59e0b; }
 .legend-dot.f0-old-dot { background: #9333ea; }
+.legend-dot.recovered-dot { background: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.5); }
 .legend-dot.healthy-dot { background: #10b981; }
 
 @media (max-width: 768px) {
@@ -4030,7 +4145,7 @@ footer {
 
   /* General Section Spacing */
   section {
-    padding: 50px 16px !important;
+    padding: 45px 14px !important;
   }
 
   h2 {
@@ -4218,12 +4333,35 @@ footer {
 
   /* Classroom Simulator Section (#so-do-lop) */
   .classroom-section {
-    padding: 50px 14px !important;
+    padding: 45px 12px !important;
   }
 
   .cr-control-card {
     padding: 16px 12px !important;
     border-radius: 16px !important;
+  }
+
+  /* Horizon Selector on Mobile */
+  .horizon-header-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .horizon-segmented-group {
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 4px !important;
+  }
+
+  .btn-horizon {
+    width: 100% !important;
+    text-align: center !important;
+    padding: 8px 4px !important;
+    font-size: 0.74rem !important;
+    white-space: normal !important;
+    line-height: 1.2 !important;
   }
 
   /* Dual Session Tab Bar */
@@ -4283,7 +4421,7 @@ footer {
     padding: 6px 12px !important;
   }
 
-  /* Dual Environmental Panels (Morning vs Afternoon) */
+  /* Dual Environmental Panels (Morning vs Afternoon) - Single Column Stack */
   .session-env-panels-wrap {
     grid-template-columns: 1fr !important;
     gap: 12px !important;
@@ -4412,10 +4550,10 @@ footer {
   }
 
   .sim-slider-ticks .tick strong {
-    font-size: 0.65rem !important;
+    font-size: 0.62rem !important;
   }
 
-  /* Summary Dashboard Cards */
+  /* Summary Dashboard Cards (2 Columns) */
   .cr-summary-dashboard {
     grid-template-columns: 1fr 1fr !important;
     gap: 8px !important;
@@ -4424,10 +4562,6 @@ footer {
   .cr-summary-card {
     padding: 10px 8px !important;
     border-radius: 12px !important;
-  }
-
-  .cr-summary-card:last-child {
-    grid-column: span 2 !important;
   }
 
   .cr-sum-label {
@@ -4439,10 +4573,10 @@ footer {
   }
 
   .cr-sum-sub {
-    font-size: 0.65rem !important;
+    font-size: 0.62rem !important;
   }
 
-  /* Classroom Room & Desk Layout */
+  /* Classroom Room & Desk Layout (Smooth Horizontal Scrolling & Touch Target) */
   .classroom-room {
     padding: 16px 10px 14px !important;
     border-radius: 16px !important;
@@ -4484,54 +4618,64 @@ footer {
     margin-bottom: 12px !important;
   }
 
+  /* Seating Chart Scroll Container */
   .classroom-columns-layout {
     justify-content: flex-start !important;
-    gap: 12px !important;
-    padding: 6px 4px 14px !important;
+    gap: 14px !important;
+    padding: 8px 6px 16px !important;
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
+    scroll-behavior: smooth !important;
   }
 
   .desk-column {
-    min-width: 140px !important;
-    max-width: 165px !important;
-    gap: 10px !important;
+    min-width: 145px !important;
+    max-width: 170px !important;
+    gap: 12px !important;
     flex-shrink: 0 !important;
   }
 
   .column-header {
     font-size: 0.72rem !important;
-    padding: 4px 8px !important;
+    padding: 5px 8px !important;
   }
 
   .desk-cluster {
-    padding: 6px !important;
-    border-radius: 10px !important;
-    gap: 4px !important;
+    padding: 8px 6px !important;
+    border-radius: 12px !important;
+    gap: 6px !important;
   }
 
   .desk-label {
-    font-size: 0.6rem !important;
+    font-size: 0.62rem !important;
   }
 
   .desk-seats-row {
-    grid-template-columns: repeat(auto-fit, minmax(48px, 1fr)) !important;
-    gap: 4px !important;
+    grid-template-columns: repeat(auto-fit, minmax(54px, 1fr)) !important;
+    gap: 5px !important;
   }
 
+  /* Touch Target >= 42px x 42px on Mobile */
   .seat-box {
-    min-height: 56px !important;
-    padding: 4px 2px !important;
-    border-radius: 8px !important;
+    min-height: 54px !important;
+    min-width: 44px !important;
+    padding: 6px 3px !important;
+    border-radius: 10px !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  .seat-box:active {
+    transform: scale(0.95) !important;
   }
 
   .seat-box .seat-icon {
-    font-size: 1.05rem !important;
+    font-size: 1.15rem !important;
   }
 
   .seat-box .seat-name {
-    font-size: 0.62rem !important;
-    line-height: 1.1 !important;
+    font-size: 0.64rem !important;
+    line-height: 1.15 !important;
   }
 
   .seat-box .badge-status {
@@ -4554,12 +4698,12 @@ footer {
   .cr-actions-bar button {
     width: 100% !important;
     justify-content: center !important;
-    font-size: 0.8rem !important;
-    padding: 10px 14px !important;
+    font-size: 0.82rem !important;
+    padding: 11px 14px !important;
     border-radius: 12px !important;
   }
 
-  /* 7-Day Progression Table */
+  /* Progression Table */
   .sim-table-wrap {
     padding: 16px 12px !important;
     border-radius: 14px !important;
@@ -4575,22 +4719,40 @@ footer {
   }
 
   .progression-table {
-    min-width: 480px !important;
+    min-width: 520px !important;
     font-size: 0.74rem !important;
   }
 
   .progression-table th {
     padding: 8px 10px !important;
     font-size: 0.72rem !important;
+    white-space: nowrap !important;
   }
 
   .progression-table td {
     padding: 8px 10px !important;
+    white-space: nowrap !important;
   }
 
   /* 30-Day Interactive Chart Section (#bieu-do-30) */
   .chart-30-section {
     padding: 45px 12px !important;
+  }
+
+  .chart-action-btns {
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 6px !important;
+  }
+
+  .chart-action-btns .btn-sim {
+    width: 100% !important;
+    text-align: center !important;
+    justify-content: center !important;
+    padding: 8px 4px !important;
+    font-size: 0.72rem !important;
+    white-space: nowrap !important;
   }
 
   .chart-timeframe-bar {
@@ -4732,16 +4894,8 @@ footer {
     grid-template-columns: 1fr !important;
   }
 
-  .cr-summary-card:last-child {
-    grid-column: auto !important;
-  }
-
   .chart-summary {
     grid-template-columns: 1fr !important;
-  }
-
-  .chart-summary .summary-card:last-child {
-    grid-column: auto !important;
   }
 }
 

@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="style.css">
   <!-- html2pdf.js for client-side PDF Report generation -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- Chart.js for epidemiological time-series curves -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
@@ -810,18 +812,24 @@
       <p class="chart-desc">Biểu đồ tự động cập nhật từ số liệu đã nhập. Tùy chọn xem toàn cảnh quá khứ và các mốc tương lai.</p>
 
       <div class="chart-timeframe-bar">
-        <button type="button" class="timeframe-pill active" id="tfExtended45" onclick="setChartTimeframe('extended_45')">🌟 Toàn cảnh (30 ngày qua + 14 ngày tới)</button>
-        <button type="button" class="timeframe-pill" id="tfFuture14" onclick="setChartTimeframe('future_14')">🔮 14 ngày tới (Chỉ tương lai)</button>
-        <button type="button" class="timeframe-pill" id="tfPast30" onclick="setChartTimeframe('past_30')">📅 30 ngày qua (Quá khứ)</button>
-        <button type="button" class="timeframe-pill" id="tfExtended60" onclick="setChartTimeframe('extended_60')">🚀 60 ngày mở rộng (30 trước + 30 tới)</button>
-        <button type="button" class="timeframe-pill" id="tfAllData" onclick="setChartTimeframe('all_data')">📊 Toàn bộ dữ liệu</button>
+        <button type="button" class="timeframe-pill active" id="tfForecast14" onclick="setChartTimeframe('forecast_14')">🔮 14 ngày tới (Chu kỳ lây lan)</button>
+        <button type="button" class="timeframe-pill" id="tfForecast7" onclick="setChartTimeframe('forecast_7')">⚡ 7 ngày tới (Cấp tính)</button>
+        <button type="button" class="timeframe-pill" id="tfForecast30" onclick="setChartTimeframe('forecast_30')">🌟 30 ngày (Đến thoái trào)</button>
+        <button type="button" class="timeframe-pill" id="tfAllData" onclick="setChartTimeframe('all_data')">📊 Toàn bộ từ Ngày 0</button>
+      </div>
+
+      <div class="chart-view-modes">
+        <span style="font-size:0.8rem; color:#94a3b8; font-weight:600;">Chỉ số hiển thị:</span>
+        <button type="button" class="view-mode-pill active" id="vmActive" onclick="setChartViewMetric('active')">🤒 Ca đang bệnh (Active ≤ 40)</button>
+        <button type="button" class="view-mode-pill" id="vmNew" onclick="setChartViewMetric('new')">⚡ Ca mới trong ngày (Daily New)</button>
+        <button type="button" class="view-mode-pill" id="vmCumulative" onclick="setChartViewMetric('cumulative')">📈 Tích lũy SEIR (Cumulative ≤ 40)</button>
       </div>
 
       <div class="line-chart-box">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom: 12px;">
           <div>
-            <h3 id="chartTitle">📅 Số ca mắc cúm theo ngày</h3>
-            <div class="chart-subtitle" id="chartSubtitle" style="margin-bottom:0;">Cột càng cao = càng nhiều ca · Màu sắc thể hiện mức độ & ngày tương lai</div>
+            <h3 id="chartTitle">📅 Số ca mắc cúm theo ngày (Bắt đầu từ Ngày 0)</h3>
+            <div class="chart-subtitle" id="chartSubtitle" style="margin-bottom:0;">Biểu đồ bắt đầu từ mốc F0 xuất hiện (Ngày 0) · Sĩ số chuẩn 40 học sinh chặn trên tuyệt đối</div>
           </div>
           <div class="chart-action-btns">
             <button type="button" class="btn-sim" style="font-size:0.75rem;" onclick="generateFutureRecords(7)">🔮 Dự báo 7 ngày</button>
@@ -830,17 +838,23 @@
           </div>
         </div>
 
+        <!-- Modern Chart.js Canvas -->
+        <div class="chart-canvas-wrapper" id="chartCanvasWrapper">
+          <canvas id="epidemicCanvasChart"></canvas>
+        </div>
+
         <div class="chart-legend-bar">
           <span class="legend-chip-chart"><span class="legend-color-box" style="background:#2dd4bf;"></span> 1–5 ca (Nhẹ)</span>
           <span class="legend-chip-chart"><span class="legend-color-box" style="background:#f59e0b;"></span> 6–15 ca (Vừa)</span>
-          <span class="legend-chip-chart"><span class="legend-color-box" style="background:#ff6b6b;"></span> >15 ca (Nặng)</span>
-          <span class="legend-chip-chart"><span class="legend-color-box" style="background:repeating-linear-gradient(45deg,#8b5cf6,#8b5cf6 3px,#c084fc 3px,#c084fc 6px);"></span> 🔮 Dự kiến tương lai</span>
-          <span class="legend-chip-chart"><span class="legend-color-box" style="background:#38bdf8; outline:1px solid white;"></span> 📍 Hôm nay</span>
+          <span class="legend-chip-chart"><span class="legend-color-box" style="background:#ef4444;"></span> >15 ca (Nặng)</span>
+          <span class="legend-chip-chart"><span class="legend-color-box" style="background:#8b5cf6;"></span> ⚡ Ca mới phát sinh</span>
+          <span class="legend-chip-chart"><span class="legend-color-box" style="background:#10b981;"></span> 🛡️ Đã khỏi (Miễn dịch)</span>
+          <span class="legend-chip-chart"><span class="legend-color-box" style="background:#38bdf8; outline:1px solid white;"></span> 📍 Ngày 0 (F0 xuất hiện)</span>
         </div>
 
-        <div class="line-chart-container">
+        <div class="line-chart-container" id="fallbackHtmlContainer">
           <div class="y-axis" id="yAxis">
-            <span>50</span><span>40</span><span>30</span><span>20</span><span>10</span><span>0</span>
+            <span>40</span><span>30</span><span>20</span><span>10</span><span>0</span>
           </div>
           <div class="chart-grid"></div>
           <div class="line-chart-bars" id="chartBars">
@@ -852,23 +866,27 @@
       <div class="chart-summary" id="chartSummary" style="display:none">
         <div class="summary-card">
           <div class="summary-val" id="sumTotal">0</div>
-          <div class="summary-label">Tổng ca thực tế</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-val" id="sumFuture" style="color:#c084fc;">0</div>
-          <div class="summary-label">Tổng ca dự kiến 🔮</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-val" id="sumAvg">0</div>
-          <div class="summary-label">Trung bình/ngày</div>
+          <div class="summary-label">Tổng ca tích lũy (≤ 40)</div>
         </div>
         <div class="summary-card">
           <div class="summary-val" id="sumPeak">0</div>
-          <div class="summary-label">Ngày cao nhất</div>
+          <div class="summary-label">Đỉnh dịch (Cao nhất/ngày)</div>
         </div>
         <div class="summary-card">
-          <div class="summary-val" id="sumAbsent">0</div>
-          <div class="summary-label">Tổng nghỉ học</div>
+          <div class="summary-val" id="sumAvg">0</div>
+          <div class="summary-label">Ca mới TB/ngày</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-val" id="sumRecovered" style="color:#10b981;">0</div>
+          <div class="summary-label">Đã khỏi (Kháng thể 🛡️)</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-val" id="sumAbsent" style="color:#f59e0b;">0</div>
+          <div class="summary-label">Nghỉ cách ly cao nhất (≤ 40)</div>
+        </div>
+        <div class="summary-card" style="border-color: rgba(56,189,248,0.3); background: rgba(56,189,248,0.06);">
+          <div class="summary-val" id="sumClassCapacity" style="color:#38bdf8;">40 HS</div>
+          <div class="summary-label">Sĩ số lớp (Hard Cap 100%)</div>
         </div>
       </div>
     </div>
@@ -1028,7 +1046,9 @@
 
     var STORAGE_KEY = 'fluTrackerData';
     var currentTableFilter = 'all';
-    var currentChartRange = 'extended_45';
+    var currentChartRange = 'forecast_14';
+    var currentChartMetric = 'active'; // 'active' | 'new' | 'cumulative'
+    var epidemicChartInstance = null;
 
     function fmtDate(d) {
       var year = d.getFullYear();
@@ -1039,7 +1059,6 @@
 
     function getRecords() {
       var data = localStorage.getItem(STORAGE_KEY);
-
       if (data) {
         try {
           var parsed = JSON.parse(data);
@@ -1047,24 +1066,23 @@
         } catch (_) {}
       }
 
-      // Auto-generate realistic baseline data for past 7 days so chart is never blank
+      // Khởi tạo từ Ngày 0 (Hôm nay / Mốc ca F0 xuất hiện) - Cắt bỏ hoàn toàn các ngày 0 thừa bên trái
       var seedRecords = [];
       var now = new Date();
       now.setHours(0, 0, 0, 0);
-      var baseDaily = [1, 2, 2, 1, 3, 2, 2];
-      for (var i = 6; i >= 0; i--) {
-        var d = new Date(now);
-        d.setDate(d.getDate() - i);
-        var cases = baseDaily[6 - i] || 2;
-        seedRecords.push({
-          date: fmtDate(d),
-          cases: cases,
-          absent: Math.round(cases * 1.5),
-          location: 'Phòng học 11A',
-          severity: cases > 5 ? 'medium' : 'low',
-          note: i === 0 ? '📍 Ghi nhận hôm nay' : 'Nhật ký sĩ số'
-        });
-      }
+      seedRecords.push({
+        date: fmtDate(now),
+        dayIndex: 0,
+        cases: 1,
+        new_cases_daily: 1,
+        active_cases: 1,
+        cumulative_cases: 1,
+        recovered_cases: 0,
+        absent: 1,
+        location: 'Phòng học 11A',
+        severity: 'low',
+        note: '📍 Ngày 0: F0 xuất hiện'
+      });
       saveRecords(seedRecords);
       return seedRecords;
     }
@@ -1105,90 +1123,330 @@
     }
 
     /**
-     * Tự động dự báo dịch từ 7 đến 30 ngày theo mô hình dịch tễ Wells-Riley SEIR (Peak & Recovery)
+     * MÔ PHỎNG VÒNG ĐỜI DỊCH TỄ SEIR (Agent-Based Cohort 40 Học Sinh):
+     * Mỗi học sinh có ID duy nhất (1 -> 40)
+     * Tiến trình: Susceptible -> Exposed (2d) -> Infected (1d trong lớp) -> Isolated (5d ở nhà) -> Recovered (Kháng thể miễn dịch)
+     * Đảm bảo:
+     * - new_cases_daily(T): Chỉ đếm học sinh chuyển trạng thái nhiễm mới trong Ngày T
+     * - active_cases(T): Số ca đang bệnh/cách ly trong ngày <= 40
+     * - cumulative_cases(T): Tổng ca tích lũy không trùng lặp <= 40 (Chặn trên Hard Cap 40)
+     */
+    function simulateSEIRCohort(daysToPredict, initialF0Count) {
+      var TOTAL_POPULATION = 40;
+      initialF0Count = Math.max(1, Math.min(5, parseInt(initialF0Count) || 1));
+      daysToPredict = Math.max(7, Math.min(30, parseInt(daysToPredict) || 14));
+
+      var students = [];
+      for (var i = 1; i <= TOTAL_POPULATION; i++) {
+        var isInitF0 = (i <= initialF0Count);
+        students.push({
+          id: i,
+          dayInfected: isInitF0 ? -2 : null // F0 ủ bệnh trước 2 ngày, phát bệnh ngày 0 trong lớp
+        });
+      }
+
+      var tMorning = parseFloat(document.getElementById('cr_t_morning')?.value || '4.0');
+      var QMorning = Math.max(20.0, parseFloat(document.getElementById('cr_Q_morning')?.value || '380.0'));
+      var tAfternoon = parseFloat(document.getElementById('cr_t_afternoon')?.value || '3.5');
+      var QAfternoon = Math.max(20.0, parseFloat(document.getElementById('cr_Q_afternoon')?.value || '200.0'));
+      var km = parseFloat(document.getElementById('cr_km')?.value || '1.0');
+      var q = parseFloat(document.getElementById('cr_q')?.value || '10.0');
+      var p = 0.50;
+
+      var dose = (((p * q * tMorning) / QMorning) + ((p * q * tAfternoon) / QAfternoon)) * km * 0.65;
+      var pTrans = Math.min(0.28, Math.max(0.04, 1.0 - Math.exp(-dose)));
+
+      var snapshots = [];
+      var cumulativeSet = new Set();
+      for (var f0 = 1; f0 <= initialF0Count; f0++) {
+        cumulativeSet.add(f0);
+      }
+
+      var pseudoSeed = 67890;
+      function prng() {
+        pseudoSeed = (pseudoSeed * 9301 + 49297) % 233280;
+        return pseudoSeed / 233280;
+      }
+
+      for (var day = 0; day <= daysToPredict; day++) {
+        var infectiousInClass = 0;
+        var activeCasesToday = 0;
+        var isolatedCasesToday = 0;
+        var recoveredCasesToday = 0;
+        var exposedCasesToday = 0;
+        var healthyCasesToday = 0;
+
+        for (var s = 0; s < TOTAL_POPULATION; s++) {
+          var st = students[s];
+          if (st.dayInfected === null) {
+            healthyCasesToday++;
+          } else {
+            var daysSince = day - st.dayInfected;
+            if (daysSince < 2) {
+              exposedCasesToday++;
+            } else if (daysSince === 2) {
+              infectiousInClass++;
+              activeCasesToday++;
+            } else if (daysSince > 2 && daysSince <= 7) {
+              isolatedCasesToday++;
+              activeCasesToday++;
+            } else {
+              recoveredCasesToday++;
+            }
+          }
+        }
+
+        var newCasesToday = 0;
+        if (day === 0) {
+          newCasesToday = initialF0Count;
+        } else {
+          for (var k = 0; k < TOTAL_POPULATION; k++) {
+            if (students[k].dayInfected === day) {
+              newCasesToday++;
+            }
+          }
+        }
+
+        if (infectiousInClass > 0 && day < daysToPredict) {
+          var pClassInfect = 1.0 - Math.pow(1.0 - pTrans, infectiousInClass);
+          for (var h = 0; h < TOTAL_POPULATION; h++) {
+            if (students[h].dayInfected === null) {
+              if (prng() < pClassInfect) {
+                students[h].dayInfected = day;
+                cumulativeSet.add(students[h].id);
+              }
+            }
+          }
+        }
+
+        var cumulativeCount = Math.min(TOTAL_POPULATION, cumulativeSet.size);
+        activeCasesToday = Math.min(TOTAL_POPULATION, activeCasesToday);
+        recoveredCasesToday = Math.min(TOTAL_POPULATION, recoveredCasesToday);
+        healthyCasesToday = Math.max(0, TOTAL_POPULATION - cumulativeCount);
+
+        snapshots.push({
+          day: day,
+          new_cases_daily: newCasesToday,
+          active_cases: activeCasesToday,
+          isolated_cases: isolatedCasesToday,
+          recovered_cases: recoveredCasesToday,
+          exposed_cases: exposedCasesToday,
+          healthy_cases: healthyCasesToday,
+          cumulative_cases: cumulativeCount,
+          infectious_in_class: infectiousInClass
+        });
+      }
+
+      return snapshots;
+    }
+
+    /**
+     * Chuẩn hóa dữ liệu biểu đồ dịch tễ học (Chuẩn Chart.js / ApexCharts / Recharts)
+     * - Bắt đầu chính xác từ Ngày 0 (F0 xuất hiện), cắt gọn toàn bộ ngày thừa bên trái.
+     * - Khắc phục hoàn toàn lỗi đếm trùng lặp (Hard Cap 40 HS).
+     */
+    function prepareChartData(recordsOrSnapshots, options) {
+      options = options || {};
+      var totalStudents = options.totalStudents || 40;
+      var horizon = Math.max(7, Math.min(30, parseInt(options.horizon) || 14));
+      var viewMetric = options.viewMetric || currentChartMetric || 'active';
+      var startDate = options.startDate ? new Date(options.startDate) : new Date();
+      startDate.setHours(0, 0, 0, 0);
+
+      var snapshots = [];
+      var isSnapList = Array.isArray(recordsOrSnapshots) &&
+                       recordsOrSnapshots.length > 0 &&
+                       typeof recordsOrSnapshots[0].new_cases_daily !== 'undefined';
+
+      if (isSnapList) {
+        snapshots = recordsOrSnapshots;
+      } else {
+        var initF0 = 1;
+        if (Array.isArray(recordsOrSnapshots) && recordsOrSnapshots.length > 0) {
+          var d0 = recordsOrSnapshots.find(function(r) { return isDateToday(r.date) || r.dayIndex === 0; });
+          if (d0 && d0.cases > 0) initF0 = Math.min(5, d0.cases);
+        }
+        snapshots = simulateSEIRCohort(horizon, initF0);
+      }
+
+      // Cắt gọn timeline: chỉ giữ từ Ngày 0 đến hết khoảng dự báo horizon
+      var trimmed = snapshots.filter(function(s) {
+        return s.day >= 0 && s.day <= horizon;
+      });
+
+      var dayData = trimmed.map(function(s) {
+        var d = new Date(startDate);
+        d.setDate(d.getDate() + s.day);
+        var dateStr = ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2);
+        var label = s.day === 0 ? 'Ngày 0 (F0 xuất hiện)' : 'Ngày ' + s.day;
+
+        var cum = Math.min(totalStudents, s.cumulative_cases);
+        var act = Math.min(totalStudents, s.active_cases);
+        var rec = Math.min(totalStudents, s.recovered_cases);
+        var dailyNew = Math.min(totalStudents, s.new_cases_daily);
+        var healthy = Math.max(0, totalStudents - cum);
+
+        return {
+          dayIndex: s.day,
+          label: label,
+          shortLabel: s.day === 0 ? 'Ngày 0' : 'N' + s.day,
+          dateStr: dateStr,
+          date: d,
+          new_cases_daily: dailyNew,
+          active_cases: act,
+          recovered_cases: rec,
+          cumulative_cases: cum,
+          healthy_cases: healthy,
+          isToday: s.day === 0,
+          isFuture: s.day > 0
+        };
+      });
+
+      var peakActive = 0;
+      var peakDay = 0;
+      var maxCumulative = 0;
+      var finalRecovered = 0;
+      var maxAbsent = 0;
+
+      dayData.forEach(function(item) {
+        if (item.active_cases > peakActive) {
+          peakActive = item.active_cases;
+          peakDay = item.dayIndex;
+        }
+        if (item.cumulative_cases > maxCumulative) {
+          maxCumulative = item.cumulative_cases;
+        }
+        if (item.recovered_cases > finalRecovered) {
+          finalRecovered = item.recovered_cases;
+        }
+        if (item.active_cases > maxAbsent) {
+          maxAbsent = item.active_cases;
+        }
+      });
+
+      maxCumulative = Math.min(totalStudents, maxCumulative);
+      peakActive = Math.min(totalStudents, peakActive);
+      finalRecovered = Math.min(totalStudents, finalRecovered);
+      maxAbsent = Math.min(totalStudents, maxAbsent);
+      var avgDailyNew = dayData.length > 0 ? (maxCumulative / dayData.length).toFixed(1) : 0;
+
+      return {
+        labels: dayData.map(function(t) { return t.label; }),
+        shortLabels: dayData.map(function(t) { return t.shortLabel; }),
+        dates: dayData.map(function(t) { return t.dateStr; }),
+        dayData: dayData,
+        new_cases_daily: dayData.map(function(t) { return t.new_cases_daily; }),
+        active_cases: dayData.map(function(t) { return t.active_cases; }),
+        recovered_cases: dayData.map(function(t) { return t.recovered_cases; }),
+        cumulative_cases: dayData.map(function(t) { return t.cumulative_cases; }),
+        healthy_cases: dayData.map(function(t) { return t.healthy_cases; }),
+        stats: {
+          totalPopulation: totalStudents,
+          cumulativeCases: maxCumulative,
+          peakActiveCases: peakActive,
+          peakDay: peakDay,
+          totalRecovered: finalRecovered,
+          maxAbsent: maxAbsent,
+          avgNewCasesPerDay: avgDailyNew
+        }
+      };
+    }
+
+    /**
+     * Tự động dự báo dịch từ 7 đến 30 ngày chuẩn SEIR không trùng lặp
      */
     function handleAutoPredict(horizonDays) {
-      var daysToPredict = Math.max(7, Math.min(30, parseInt(horizonDays) || 7));
-      var records = getRecords();
+      var daysToPredict = Math.max(7, Math.min(30, parseInt(horizonDays) || 14));
       var today = new Date();
       today.setHours(0,0,0,0);
 
-      // Lấy số ca F0 hiện tại hoặc trung bình quá khứ gần nhất
-      var recentPast = records.filter(function(r) {
-        var rd = new Date(r.date);
-        rd.setHours(0,0,0,0);
-        return rd <= today;
-      });
+      var snapshots = simulateSEIRCohort(daysToPredict, 1);
+      var updatedRecords = [];
 
-      var baseCases = 2;
-      if (recentPast.length > 0) {
-        var sum = 0;
-        var count = Math.min(recentPast.length, 5);
-        for (var p = 0; p < count; p++) sum += recentPast[p].cases;
-        baseCases = Math.max(1, Math.round(sum / count));
-      }
-
-      // Mô hình dịch tễ có đỉnh dịch (Peak) và hồi phục (Recovery - miễn dịch)
-      // Đỉnh dịch xảy ra ở khoảng 35% - 40% chu kỳ bùng phát (thường ngày 4 - 8)
-      var peakDay = Math.min(7, Math.max(4, Math.round(daysToPredict * 0.35)));
-
-      for (var day = 1; day <= daysToPredict; day++) {
+      snapshots.forEach(function(snap) {
         var futureD = new Date(today);
-        futureD.setDate(futureD.getDate() + day);
+        futureD.setDate(futureD.getDate() + snap.day);
         var fKey = fmtDate(futureD);
 
-        var foundIdx = -1;
-        for (var k = 0; k < records.length; k++) {
-          if (records[k].date === fKey) { foundIdx = k; break; }
-        }
+        var note = snap.day === 0 ? '📍 Ngày 0: F0 xuất hiện' :
+                   (snap.active_cases > 10 ? '⚠️ Giai đoạn đỉnh dịch' :
+                   (snap.active_cases === 0 && snap.recovered_cases > 0 ? '🟢 Dập tắt dịch' : '🔮 Dự báo SEIR (+' + snap.day + ' ngày)'));
 
-        // Mô hình đường cong dịch tễ chuông lệch (Epidemic Bell Curve with Recovery):
-        // Giai đoạn 1: Tăng trưởng lũy thừa ban đầu
-        // Giai đoạn 2: Đạt đỉnh bùng phát (Peak)
-        // Giai đoạn 3: Thoái lui do cách ly F0 + khỏi bệnh có kháng thể
-        var curveRatio;
-        if (day <= peakDay) {
-          curveRatio = Math.sin((day / peakDay) * (Math.PI / 2));
-        } else {
-          var progressAfterPeak = (day - peakDay) / Math.max(1, daysToPredict - peakDay);
-          curveRatio = Math.exp(-progressAfterPeak * 2.8);
-        }
-
-        var peakMagnitude = Math.min(18, baseCases * 2.8 + 3);
-        var simCases = Math.max(0, Math.round(baseCases + (peakMagnitude - baseCases) * curveRatio + (Math.sin(day * 1.5) * 0.7)));
-        if (day > 18 && simCases < 1) {
-          simCases = (day % 5 === 0 ? 1 : 0); // rải rác ca nhẹ sau đỉnh dịch
-        }
-
-        var simAbsent = Math.min(32, Math.round(simCases * 1.35 + (day > 3 && day < 12 ? 3 : 0)));
-        var sev = simCases > 12 ? 'high' : (simCases > 4 ? 'medium' : 'low');
-
-        var newRec = {
+        updatedRecords.push({
           date: fKey,
-          cases: simCases,
-          absent: simAbsent,
+          dayIndex: snap.day,
+          cases: snap.active_cases,
+          new_cases_daily: snap.new_cases_daily,
+          active_cases: snap.active_cases,
+          cumulative_cases: snap.cumulative_cases,
+          recovered_cases: snap.recovered_cases,
+          absent: snap.active_cases,
           location: 'Phòng học 11A',
-          severity: sev,
-          note: '🔮 Dự báo SEIR (+' + day + ' ngày' + (day === peakDay ? ' - Đỉnh dịch' : (day > 10 ? ' - Thoái trào' : '')) + ')'
-        };
+          severity: snap.active_cases > 12 ? 'high' : (snap.active_cases > 4 ? 'medium' : 'low'),
+          note: note
+        });
+      });
 
-        if (foundIdx >= 0) {
-          records[foundIdx] = newRec;
-        } else {
-          records.push(newRec);
-        }
-      }
-
-      records.sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
-      saveRecords(records);
+      updatedRecords.sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
+      saveRecords(updatedRecords);
       renderTable();
       render30DayChart();
 
       if (window.FluUi && window.FluUi.showToast) {
-        window.FluUi.showToast('🔮 Đã tự động dự báo thành công ' + daysToPredict + ' ngày với diễn tiến Đỉnh dịch & Hồi phục!', 'success');
+        window.FluUi.showToast('🔮 Đã dự báo ' + daysToPredict + ' ngày SEIR chuẩn xác (Sĩ số 40 HS chặn cứng)!', 'success');
       }
     }
 
+    /**
+     * Đồng bộ hóa trực tiếp kết quả từ Sơ đồ lớp học (flu-engine-ui.js) sang Biểu đồ
+     */
+    function syncSimulationToChart(simHistory, horizonDays) {
+      if (!Array.isArray(simHistory) || simHistory.length === 0) return;
+      var today = new Date();
+      today.setHours(0,0,0,0);
+
+      var syncedSnapshots = simHistory.map(function(s) {
+        var act = (s.totalInfectious || 0) + (s.totalIsolated || 0);
+        var rec = s.totalRecovered || 0;
+        var cum = Math.min(40, act + rec + (s.totalExposed || 0));
+        return {
+          day: s.day,
+          new_cases_daily: s.newCases || 0,
+          active_cases: Math.min(40, act),
+          isolated_cases: s.totalIsolated || 0,
+          recovered_cases: Math.min(40, rec),
+          exposed_cases: s.totalExposed || 0,
+          healthy_cases: s.totalHealthy || 0,
+          cumulative_cases: cum
+        };
+      });
+
+      var records = syncedSnapshots.map(function(snap) {
+        var futureD = new Date(today);
+        futureD.setDate(futureD.getDate() + snap.day);
+        return {
+          date: fmtDate(futureD),
+          dayIndex: snap.day,
+          cases: snap.active_cases,
+          new_cases_daily: snap.new_cases_daily,
+          active_cases: snap.active_cases,
+          cumulative_cases: snap.cumulative_cases,
+          recovered_cases: snap.recovered_cases,
+          absent: snap.active_cases,
+          location: 'Phòng học 11A',
+          severity: snap.active_cases > 12 ? 'high' : (snap.active_cases > 4 ? 'medium' : 'low'),
+          note: snap.day === 0 ? '📍 Ngày 0: F0 xuất hiện' : 'Mô phỏng lớp học (+Ngày ' + snap.day + ')'
+        };
+      });
+
+      saveRecords(records);
+      renderTable();
+      render30DayChart();
+    }
+
+    window.simulateSEIRCohort = simulateSEIRCohort;
+    window.prepareChartData = prepareChartData;
+    window.syncSimulationToChart = syncSimulationToChart;
     var generateFutureRecords = handleAutoPredict;
     window.handleAutoPredict = handleAutoPredict;
     window.handleAutoPredict7Days = handleAutoPredict;
@@ -1314,153 +1572,258 @@
     function setChartTimeframe(mode) {
       currentChartRange = mode;
       document.querySelectorAll('.timeframe-pill').forEach(function(p) { p.classList.remove('active'); });
-      if (mode === 'extended_45') document.getElementById('tfExtended45').classList.add('active');
-      if (mode === 'future_14') document.getElementById('tfFuture14').classList.add('active');
-      if (mode === 'past_30') document.getElementById('tfPast30').classList.add('active');
-      if (mode === 'extended_60') document.getElementById('tfExtended60').classList.add('active');
-      if (mode === 'all_data') document.getElementById('tfAllData').classList.add('active');
+      if (mode === 'forecast_14') document.getElementById('tfForecast14')?.classList.add('active');
+      if (mode === 'forecast_7') document.getElementById('tfForecast7')?.classList.add('active');
+      if (mode === 'forecast_30') document.getElementById('tfForecast30')?.classList.add('active');
+      if (mode === 'all_data') document.getElementById('tfAllData')?.classList.add('active');
       render30DayChart();
     }
+
+    function setChartViewMetric(metric) {
+      currentChartMetric = metric;
+      document.querySelectorAll('.view-mode-pill').forEach(function(p) { p.classList.remove('active'); });
+      if (metric === 'active') document.getElementById('vmActive')?.classList.add('active');
+      if (metric === 'new') document.getElementById('vmNew')?.classList.add('active');
+      if (metric === 'cumulative') document.getElementById('vmCumulative')?.classList.add('active');
+      render30DayChart();
+    }
+    window.setChartViewMetric = setChartViewMetric;
+    window.setChartTimeframe = setChartTimeframe;
 
     function render30DayChart() {
       var records = getRecords();
       var barsEl = document.getElementById('chartBars');
       var summaryEl = document.getElementById('chartSummary');
+      var canvasEl = document.getElementById('epidemicCanvasChart');
 
-      if (records.length === 0) {
-        barsEl.innerHTML = '<div class="no-data-msg">Chưa có dữ liệu. Nhập số liệu ở phần trên hoặc bấm "Tự động dự báo 7 ngày" để xem biểu đồ 📊</div>';
-        summaryEl.style.display = 'none';
-        return;
-      }
+      // Xác định khoảng thời gian horizon từ bộ chọn (mặc định 14 ngày)
+      var horizon = 14;
+      if (currentChartRange === 'forecast_7') horizon = 7;
+      else if (currentChartRange === 'forecast_30') horizon = 30;
+      else if (currentChartRange === 'all_data') horizon = 30;
 
-      var today = new Date();
-      today.setHours(0,0,0,0);
-      var days = [];
-
-      function createDayObj(d, recs) {
-        d.setHours(0,0,0,0);
-        var key = fmtDate(d);
-        var found = null;
-        for (var j = 0; j < recs.length; j++) {
-          if (recs[j].date === key) { found = recs[j]; break; }
-        }
-        var isFut = d.getTime() > today.getTime();
-        var isTod = d.getTime() === today.getTime();
-        return {
-          date: d,
-          key: key,
-          cases: found ? found.cases : 0,
-          absent: found ? (found.absent || 0) : 0,
-          label: d.getDate() + '/' + (d.getMonth() + 1),
-          isFuture: isFut,
-          isToday: isTod
-        };
-      }
-
-      if (currentChartRange === 'future_14') {
-        for (var i = 0; i <= 14; i++) {
-          var d = new Date(today);
-          d.setDate(d.getDate() + i);
-          days.push(createDayObj(d, records));
-        }
-      } else if (currentChartRange === 'past_30') {
-        for (var i = 29; i >= 0; i--) {
-          var d = new Date(today);
-          d.setDate(d.getDate() - i);
-          days.push(createDayObj(d, records));
-        }
-      } else if (currentChartRange === 'extended_60') {
-        for (var i = -30; i <= 30; i++) {
-          var d = new Date(today);
-          d.setDate(d.getDate() + i);
-          days.push(createDayObj(d, records));
-        }
-      } else if (currentChartRange === 'all_data') {
-        var minD = new Date(today);
-        var maxD = new Date(today);
-        records.forEach(function(r) {
-          var rd = new Date(r.date);
-          if (rd < minD) minD = new Date(rd);
-          if (rd > maxD) maxD = new Date(rd);
-        });
-        minD.setDate(minD.getDate() - 3);
-        maxD.setDate(maxD.getDate() + 7);
-        var cur = new Date(minD);
-        while (cur <= maxD) {
-          days.push(createDayObj(new Date(cur), records));
-          cur.setDate(cur.getDate() + 1);
-        }
-      } else {
-        // extended_45: 30 days past to +14 days future
-        for (var i = -30; i <= 14; i++) {
-          var d = new Date(today);
-          d.setDate(d.getDate() + i);
-          days.push(createDayObj(d, records));
-        }
-      }
-
-      var maxCases = 0;
-      for (var k = 0; k < days.length; k++) {
-        if (days[k].cases > maxCases) maxCases = days[k].cases;
-      }
-      var yMax = Math.max(maxCases + 5, 10);
-
-      var yAxis = document.getElementById('yAxis');
-      yAxis.innerHTML = '';
-      var step = Math.ceil(yMax / 5);
-      for (var v = yMax; v >= 0; v -= step) {
-        var sp = document.createElement('span');
-        sp.textContent = v;
-        yAxis.appendChild(sp);
-      }
-
-      var html = '';
-      days.forEach(function(day, idx) {
-        var hPct = yMax > 0 ? (day.cases / yMax * 100) : 0;
-        var cls = day.cases > 15 ? 'high' : (day.cases > 5 ? 'med' : 'low');
-        if (day.isFuture) cls += ' future';
-        if (day.isToday) cls += ' today';
-
-        var titleText = (day.isFuture ? '🔮 [Dự kiến] ' : (day.isToday ? '📍 [Hôm nay] ' : '')) + day.label + ': ' + day.cases + ' ca';
-
-        html += '<div class="day-col">';
-        if (day.cases > 0) {
-          html += '<div class="day-bar ' + cls + '" style="height:' + Math.max(hPct, 3) + '%" title="' + titleText + '"></div>';
-        } else {
-          html += '<div class="day-bar empty' + (day.isToday ? ' today' : '') + '" style="height:2px" title="' + titleText + '"></div>';
-        }
-
-        var lblCls = 'day-label' + (day.isToday ? ' is-today' : (day.isFuture ? ' is-future' : ''));
-        var isMobileScreen = window.innerWidth <= 768;
-        var stepInterval = isMobileScreen ? (days.length > 30 ? 6 : (days.length > 15 ? 3 : 2)) : (days.length > 50 ? 4 : 2);
-        var showLabel = (days.length <= 10) || (idx % stepInterval === 0) || day.isToday;
-        if (showLabel) {
-          html += '<span class="' + lblCls + '">' + day.label + '</span>';
-        } else {
-          html += '<span class="' + lblCls + '" style="visibility:hidden">·</span>';
-        }
-        html += '</div>';
+      // Chuẩn hóa dữ liệu qua prepareChartData: Bắt đầu từ Ngày 0 (F0 xuất hiện), Sĩ số trần 40 HS
+      var chartData = prepareChartData(records, {
+        horizon: horizon,
+        viewMetric: currentChartMetric,
+        totalStudents: 40
       });
-      barsEl.innerHTML = html;
 
-      summaryEl.style.display = 'flex';
-      var totalReal = 0, totalFuture = 0, maxAbsentInDay = 0, withData = 0;
-      for (var m = 0; m < days.length; m++) {
-        if (days[m].isFuture) {
-          totalFuture += days[m].cases;
-        } else {
-          totalReal += days[m].cases;
+      // 1. Vẽ Biểu đồ Hiện đại bằng Chart.js (nếu thư viện CDN đã sẵn sàng)
+      if (typeof window.Chart !== 'undefined' && canvasEl) {
+        if (epidemicChartInstance) {
+          epidemicChartInstance.destroy();
+          epidemicChartInstance = null;
         }
-        if (days[m].absent > maxAbsentInDay) maxAbsentInDay = days[m].absent;
-        if (days[m].cases > 0) withData++;
-      }
-      var avgC = withData > 0 ? ((totalReal + totalFuture) / withData).toFixed(1) : 0;
 
-      document.getElementById('sumTotal').textContent = totalReal;
-      if (document.getElementById('sumFuture')) document.getElementById('sumFuture').textContent = totalFuture;
-      document.getElementById('sumAvg').textContent = avgC;
-      document.getElementById('sumPeak').textContent = maxCases;
-      if (document.getElementById('sumAbsent')) document.getElementById('sumAbsent').textContent = Math.min(maxAbsentInDay, 40);
+        var primaryLabel = currentChartMetric === 'new' 
+          ? '⚡ Ca mới trong ngày (Daily New)' 
+          : (currentChartMetric === 'cumulative' ? '📈 Tích lũy (Cumulative ≤ 40)' : '🤒 Đang mắc bệnh (Active Cases)');
+
+        var primaryValues = currentChartMetric === 'new' 
+          ? chartData.new_cases_daily 
+          : (currentChartMetric === 'cumulative' ? chartData.cumulative_cases : chartData.active_cases);
+
+        var primaryColors = primaryValues.map(function(v) {
+          if (currentChartMetric === 'new') return 'rgba(139, 92, 246, 0.8)';
+          if (currentChartMetric === 'cumulative') return 'rgba(56, 189, 248, 0.7)';
+          if (v > 15) return 'rgba(239, 68, 68, 0.85)';
+          if (v > 5) return 'rgba(245, 158, 11, 0.85)';
+          return 'rgba(20, 184, 166, 0.85)';
+        });
+
+        var datasets = [
+          {
+            type: 'bar',
+            label: primaryLabel,
+            data: primaryValues,
+            backgroundColor: primaryColors,
+            borderColor: currentChartMetric === 'new' ? '#8b5cf6' : (currentChartMetric === 'cumulative' ? '#38bdf8' : '#14b8a6'),
+            borderWidth: 1.5,
+            borderRadius: 6,
+            order: 2
+          },
+          {
+            type: 'line',
+            label: 'Tổng ca tích lũy (≤ 40)',
+            data: chartData.cumulative_cases,
+            borderColor: '#f43f5e',
+            backgroundColor: 'rgba(244, 63, 94, 0.08)',
+            borderWidth: 2.5,
+            borderDash: [5, 4],
+            pointRadius: 3,
+            pointBackgroundColor: '#f43f5e',
+            tension: 0.3,
+            fill: false,
+            order: 1
+          },
+          {
+            type: 'line',
+            label: 'Đã khỏi (Kháng thể 🛡️)',
+            data: chartData.recovered_cases,
+            borderColor: '#10b981',
+            borderWidth: 2,
+            pointRadius: 2,
+            tension: 0.3,
+            fill: false,
+            order: 1
+          }
+        ];
+
+        var ctx = canvasEl.getContext('2d');
+        epidemicChartInstance = new Chart(ctx, {
+          data: {
+            labels: chartData.shortLabels,
+            datasets: datasets
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              mode: 'index',
+              intersect: false
+            },
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                  color: '#cbd5e1',
+                  font: { size: 11, weight: 'bold' }
+                }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                titleColor: '#38bdf8',
+                bodyColor: '#f8fafc',
+                borderColor: 'rgba(56, 189, 248, 0.3)',
+                borderWidth: 1,
+                padding: 12,
+                boxPadding: 6,
+                callbacks: {
+                  title: function(items) {
+                    var idx = items[0].dataIndex;
+                    var d = chartData.dayData[idx];
+                    return d ? d.label + ' (' + d.dateStr + ')' : items[0].label;
+                  },
+                  afterBody: function(items) {
+                    var idx = items[0].dataIndex;
+                    var d = chartData.dayData[idx];
+                    if (!d) return [];
+                    return [
+                      '-----------------------------------',
+                      '🤒 Đang mắc bệnh: ' + d.active_cases + ' bạn (≤ 40)',
+                      '⚡ Ca mới trong ngày: +' + d.new_cases_daily + ' bạn',
+                      '🛡️ Đã khỏi bệnh: ' + d.recovered_cases + ' bạn',
+                      '📈 Tích lũy toàn đợt: ' + d.cumulative_cases + ' / 40 bạn',
+                      '🟢 Khỏe mạnh còn lại: ' + d.healthy_cases + ' / 40 bạn'
+                    ];
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: 'rgba(255, 255, 255, 0.06)' },
+                ticks: {
+                  color: '#94a3b8',
+                  font: { size: 11 },
+                  maxRotation: 45
+                }
+              },
+              y: {
+                min: 0,
+                max: 40,
+                suggestedMax: Math.min(40, Math.max(chartData.stats.peakActiveCases + 4, 15)),
+                grid: { color: 'rgba(255, 255, 255, 0.08)' },
+                ticks: {
+                  color: '#94a3b8',
+                  stepSize: 5
+                },
+                title: {
+                  display: true,
+                  text: 'Số học sinh (Trần tối đa 40)',
+                  color: '#64748b',
+                  font: { size: 11 }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // 2. Render Biểu đồ Cột HTML dự phòng (Fallback Responsive - Cắt gọn từ Ngày 0)
+      if (barsEl) {
+        var days = chartData.dayData;
+        var maxDisplayVal = 0;
+        days.forEach(function(d) {
+          var val = (currentChartMetric === 'new') ? d.new_cases_daily : (currentChartMetric === 'cumulative' ? d.cumulative_cases : d.active_cases);
+          if (val > maxDisplayVal) maxDisplayVal = val;
+        });
+        var yMax = Math.min(40, Math.max(maxDisplayVal + 4, 10));
+
+        var yAxis = document.getElementById('yAxis');
+        if (yAxis) {
+          yAxis.innerHTML = '';
+          var step = Math.ceil(yMax / 5);
+          for (var v = yMax; v >= 0; v -= step) {
+            var sp = document.createElement('span');
+            sp.textContent = v;
+            yAxis.appendChild(sp);
+          }
+        }
+
+        var html = '';
+        days.forEach(function(day, idx) {
+          var metricVal = (currentChartMetric === 'new') ? day.new_cases_daily : (currentChartMetric === 'cumulative' ? day.cumulative_cases : day.active_cases);
+          var hPct = yMax > 0 ? (metricVal / yMax * 100) : 0;
+          var cls = metricVal > 15 ? 'high' : (metricVal > 5 ? 'med' : 'low');
+          if (day.isFuture) cls += ' future';
+          if (day.isToday) cls += ' today';
+
+          var titleText = day.label + ' (' + day.dateStr + '): ' + metricVal + ' ca' + 
+            ' (Active: ' + day.active_cases + ', New: +' + day.new_cases_daily + ', Khỏi: ' + day.recovered_cases + ', Tích lũy: ' + day.cumulative_cases + '/40)';
+
+          html += '<div class="day-col">';
+          if (metricVal > 0) {
+            html += '<div class="day-bar ' + cls + '" style="height:' + Math.max(hPct, 3) + '%" title="' + titleText + '"></div>';
+          } else {
+            html += '<div class="day-bar empty' + (day.isToday ? ' today' : '') + '" style="height:2px" title="' + titleText + '"></div>';
+          }
+
+          var lblCls = 'day-label' + (day.isToday ? ' is-today' : (day.isFuture ? ' is-future' : ''));
+          var isMobileScreen = window.innerWidth <= 768;
+          var stepInterval = isMobileScreen ? (days.length > 20 ? 5 : (days.length > 10 ? 2 : 1)) : (days.length > 20 ? 2 : 1);
+          var showLabel = (idx % stepInterval === 0) || day.isToday;
+          if (showLabel) {
+            html += '<span class="' + lblCls + '">' + day.shortLabel + '</span>';
+          } else {
+            html += '<span class="' + lblCls + '" style="visibility:hidden">·</span>';
+          }
+          html += '</div>';
+        });
+        barsEl.innerHTML = html;
+      }
+
+      // 3. Cập nhật các Thẻ Thống kê Dịch tễ (CHẶN TRÊN TUYỆT ĐỐI 40 HS, KHÔNG CỘNG TRÙNG)
+      if (summaryEl) {
+        summaryEl.style.display = 'flex';
+        var stats = chartData.stats;
+
+        var elTotal = document.getElementById('sumTotal');
+        var elPeak = document.getElementById('sumPeak');
+        var elAvg = document.getElementById('sumAvg');
+        var elRecovered = document.getElementById('sumRecovered');
+        var elAbsent = document.getElementById('sumAbsent');
+        var elCapacity = document.getElementById('sumClassCapacity');
+
+        if (elTotal) elTotal.textContent = stats.cumulativeCases + ' / 40 HS';
+        if (elPeak) elPeak.textContent = stats.peakActiveCases + ' HS (N' + stats.peakDay + ')';
+        if (elAvg) elAvg.textContent = stats.avgNewCasesPerDay + ' HS';
+        if (elRecovered) elRecovered.textContent = stats.totalRecovered + ' HS';
+        if (elAbsent) elAbsent.textContent = stats.maxAbsent + ' HS';
+        if (elCapacity) elCapacity.textContent = '40 HS';
+      }
     }
 
     function init30DayChartModule() {

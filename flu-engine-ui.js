@@ -1651,6 +1651,11 @@
     // Render current day view and progression table
     renderSimDayView(currentSimDay);
     render7DayProgressionTable();
+
+    // Đồng bộ kết quả mô phỏng SEIR sang biểu đồ dự báo
+    if (typeof window.syncSimulationToChart === 'function') {
+      window.syncSimulationToChart(simHistory, simHorizonDays);
+    }
   }
 
   const run7DaySimulation = runEpidemicSimulation;

@@ -1631,9 +1631,9 @@
       const elC = document.getElementById('compDailyCombinedRate');
       const elAStat = document.getElementById('compAfternoonStatus');
 
-      if (elM) elM.textContent = `P = ${avgM}%`;
-      if (elA) elA.textContent = `P = ${avgA}%`;
-      if (elC) elC.textContent = `P = ${avgC}%`;
+      if (elM) elM.textContent = `${avgM}%`;
+      if (elA) elA.textContent = `${avgA}%`;
+      if (elC) elC.textContent = `${avgC}%`;
 
       if (elAStat) {
         if (parseFloat(avgA) > parseFloat(avgM)) {

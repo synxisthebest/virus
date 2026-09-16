@@ -538,7 +538,7 @@
             <div class="panel-badge morning">🌅 THÔNG SỐ CA SÁNG (Phòng Học Lý Thuyết)</div>
             <div class="panel-fields-grid">
               <div class="field-item">
-                <label>⏱️ Thời gian học $t_{sáng}$:</label>
+                <label>⏱️ Thời gian học:</label>
                 <div class="input-with-unit">
                   <input type="number" id="cr_t_morning" value="4.0" min="1.0" max="6.0" step="0.5"> <span>giờ</span>
                 </div>
@@ -563,7 +563,7 @@
             <div class="panel-badge afternoon">🌇 THÔNG SỐ CA CHIỀU (Phòng Chức Năng / Lab)</div>
             <div class="panel-fields-grid">
               <div class="field-item">
-                <label>⏱️ Thời gian học $t_{chiều}$:</label>
+                <label>⏱️ Thời gian học:</label>
                 <div class="input-with-unit">
                   <input type="number" id="cr_t_afternoon" value="3.5" min="1.0" max="6.0" step="0.5"> <span>giờ</span>
                 </div>
@@ -588,17 +588,17 @@
         <!-- Global Parameters Quick Bar (Mask & Quanta) -->
         <div class="cr-env-bar" style="margin-top:14px;">
           <div class="cr-env-item">
-            <span>🎭 Biện pháp khẩu trang ($k_m$):</span>
+            <span>🎭 Biện pháp khẩu trang:</span>
             <select id="cr_km">
-              <option value="1.0" selected>Không đeo (1.0 - 100% lây lan)</option>
-              <option value="0.65">Khẩu trang vải (0.65 - Giảm 35%)</option>
-              <option value="0.30">Khẩu trang Y tế (0.30 - Giảm 70%)</option>
-              <option value="0.05">Khẩu trang N95 (0.05 - Giảm 95%)</option>
+              <option value="1.0" selected>Không đeo (100% lây lan)</option>
+              <option value="0.65">Khẩu trang vải (Giảm 35%)</option>
+              <option value="0.30">Khẩu trang Y tế (Giảm 70%)</option>
+              <option value="0.05">Khẩu trang N95 (Giảm 95%)</option>
             </select>
           </div>
 
           <div class="cr-env-item">
-            <span>🗣️ Tốc độ phát tán $q$:</span>
+            <span>🗣️ Tốc độ phát tán virus:</span>
             <input type="number" id="cr_q" value="10" min="2" max="100" step="2" style="width:65px;" title="Học bài & thở bình thường (10 quanta/h)"> <span>quanta/h</span>
           </div>
 
@@ -616,19 +616,19 @@
         <div class="session-comparison-card" id="sessionComparisonCard">
           <div class="comp-col">
             <span class="comp-title">🌅 Ca Sáng:</span>
-            <span class="comp-val" id="compMorningRate">P = 2.8%</span>
+            <span class="comp-val" id="compMorningRate">2.8%</span>
             <small id="compMorningStatus">🟢 Thoáng khí tốt</small>
           </div>
           <div class="comp-divider">vs</div>
           <div class="comp-col">
             <span class="comp-title">🌇 Ca Chiều:</span>
-            <span class="comp-val" id="compAfternoonRate">P = 5.2%</span>
+            <span class="comp-val" id="compAfternoonRate">5.2%</span>
             <small id="compAfternoonStatus" style="color:#ef4444;">🔴 Nguy cơ cao hơn (+85%) do phòng kín</small>
           </div>
           <div class="comp-col comp-total">
             <span class="comp-title">🌐 Nguy cơ tích lũy cả ngày:</span>
-            <span class="comp-val highlight" id="compDailyCombinedRate">P = 7.9%</span>
-            <small>Công thức: $P_{tổng} = 1 - (1 - P_{sáng})(1 - P_{chiều})$</small>
+            <span class="comp-val highlight" id="compDailyCombinedRate">7.9%</span>
+            <small>Tổng hợp nguy cơ lây nhiễm từ cả 2 ca</small>
           </div>
         </div>
       </div>

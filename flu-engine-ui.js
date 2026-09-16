@@ -14,21 +14,21 @@
   // Preset scenarios database
   const PRESET_SCENARIOS = {
     classroom: {
-      name: 'Lớp học / Văn phòng kín',
+      name: 'Lớp học phổ thông (Mở cửa)',
       infected_count: 1,
       susceptible_count: 35,
       activity_preset: 'speaking',
-      breathing_rate: 0.75,
+      breathing_rate: 0.50,
       quanta_preset: 'speaking_normal',
-      quanta_rate: 50.0,
-      vent_mode: 'cadr',
-      cadr: 120.0,
+      quanta_rate: 5.0,
+      vent_mode: 'volume_ach',
+      cadr: 450.0,
       vol: 150.0,
-      ach: 1.5,
+      ach: 3.0,
       mask_f0: 'none',
       mask_susceptible: 'none',
-      kd: '1.0',
-      kh: '0.7',
+      kd: '0.4',
+      kh: '1.0',
       t: 4.0,
     },
     cafe: {
@@ -36,16 +36,16 @@
       infected_count: 1,
       susceptible_count: 20,
       activity_preset: 'standing',
-      breathing_rate: 0.60,
+      breathing_rate: 0.50,
       quanta_preset: 'speaking_quiet',
-      quanta_rate: 20.0,
+      quanta_rate: 3.5,
       vent_mode: 'cadr',
-      cadr: 600.0,
+      cadr: 500.0,
       vol: 180.0,
-      ach: 4.0,
+      ach: 3.5,
       mask_f0: 'cloth',
       mask_susceptible: 'none',
-      kd: '0.6',
+      kd: '0.4',
       kh: '1.0',
       t: 1.5,
     },
@@ -56,32 +56,32 @@
       activity_preset: 'resting',
       breathing_rate: 0.50,
       quanta_preset: 'coughing_sneezing',
-      quanta_rate: 150.0,
+      quanta_rate: 15.0,
       vent_mode: 'volume_ach',
-      cadr: 900.0,
+      cadr: 650.0,
       vol: 150.0,
-      ach: 6.0,
+      ach: 4.5,
       mask_f0: 'n95',
       mask_susceptible: 'n95',
-      kd: '0.6',
+      kd: '0.4',
       kh: '1.2',
       t: 1.0,
     },
     gym: {
       name: 'Phòng Gym / Vận động mạnh',
-      infected_count: 2,
-      susceptible_count: 25,
+      infected_count: 1,
+      susceptible_count: 20,
       activity_preset: 'heavy_exercise',
-      breathing_rate: 1.80,
+      breathing_rate: 1.50,
       quanta_preset: 'speaking_loud',
-      quanta_rate: 100.0,
+      quanta_rate: 10.0,
       vent_mode: 'cadr',
-      cadr: 300.0,
+      cadr: 500.0,
       vol: 250.0,
       ach: 2.0,
       mask_f0: 'none',
       mask_susceptible: 'none',
-      kd: '1.0',
+      kd: '0.4',
       kh: '1.0',
       t: 2.0,
     },
@@ -176,7 +176,7 @@
     if (quantaSelect) {
       quantaSelect.addEventListener('change', e => {
         const qInput = document.getElementById('wr_q_input');
-        const map = { oral_breathing: 5, speaking_quiet: 20, speaking_normal: 50, speaking_loud: 100, coughing_sneezing: 150 };
+        const map = { oral_breathing: 2.5, speaking_quiet: 3.5, speaking_normal: 5.0, speaking_loud: 10.0, coughing_sneezing: 15.0 };
         if (qInput && map[e.target.value]) qInput.value = map[e.target.value];
       });
     }
@@ -276,10 +276,10 @@
     setVal('wr_activity_preset', 'resting');
     setVal('wr_p_input', '0.5');
     setVal('wr_quanta_preset', 'speaking_normal');
-    setVal('wr_q_input', '50');
+    setVal('wr_q_input', '5.0');
     setVal('wr_mask_f0', 'none');
     setVal('wr_mask_susceptible', 'none');
-    setVal('wr_kd_select', '1.0');
+    setVal('wr_kd_select', '0.4');
     setVal('wr_kh_select', '1.0');
     setVal('wr_t_slider', '3.0');
     setVal('wr_t_input', '3.0');
@@ -1017,6 +1017,7 @@
     const elQAfternoon = document.getElementById('cr_Q_afternoon');
     const elKm = document.getElementById('cr_km');
     const elQgen = document.getElementById('cr_q');
+    const elVaccineRate = document.getElementById('cr_vaccine_rate');
 
     const elStudentCount = document.getElementById('crStudentCountInput');
 
@@ -1067,7 +1068,7 @@
       });
     }
 
-    [elTMorning, elQMorning, elTAfternoon, elQAfternoon, elKm, elQgen].forEach(input => {
+    [elTMorning, elQMorning, elTAfternoon, elQAfternoon, elKm, elQgen, elVaccineRate].forEach(input => {
       if (input) {
         input.addEventListener('input', () => {
           run7DaySimulation();
@@ -1281,11 +1282,13 @@
     }
 
     // 3. Build comprehensive Student Agent objects
+    const vaccineRate = parseFloat(document.getElementById('cr_vaccine_rate')?.value || '0.30');
     for (let id = 1; id <= classRosterSize; id++) {
       const padId = String(id).padStart(2, '0');
       const name = `STT ${id}`;
       const isInitialF0 = initialF0StudentIds.has(id);
-
+      // Deterministic vaccination status based on seed distribution
+      const hasVaccine = !isInitialF0 && (((id * 17 + 11) % 100) < Math.round(vaccineRate * 100));
 
       const mPos = studentMorningPos.get(id) || { seatKey: 'Chưa xếp', col: 1, row: 1, seat: 1, x: 0, y: 0 };
       const aPos = studentAfternoonPos.get(id) || { seatKey: 'Chưa xếp', col: 1, row: 1, seat: 1, x: 0, y: 0 };
@@ -1294,6 +1297,7 @@
         id,
         name,
         isInitialF0,
+        hasVaccine,
         status: isInitialF0 ? 'INFECTED' : 'HEALTHY',
         morningPos: mPos,
         afternoonPos: aPos,
@@ -1427,15 +1431,15 @@
     const km = parseFloat(document.getElementById('cr_km')?.value || '1.0');
     const kh = 1.0;
     const p = 0.50;
-    const q = parseFloat(document.getElementById('cr_q')?.value || '10.0');
+    const q = parseFloat(document.getElementById('cr_q')?.value || '5.0');
 
     // Morning Session Parameters
     const tMorning = parseFloat(document.getElementById('cr_t_morning')?.value || '4.0');
-    const QMorning = Math.max(20.0, parseFloat(document.getElementById('cr_Q_morning')?.value || '380.0'));
+    const QMorning = Math.max(20.0, parseFloat(document.getElementById('cr_Q_morning')?.value || '450.0'));
 
     // Afternoon Session Parameters
     const tAfternoon = parseFloat(document.getElementById('cr_t_afternoon')?.value || '3.5');
-    const QAfternoon = Math.max(20.0, parseFloat(document.getElementById('cr_Q_afternoon')?.value || '200.0'));
+    const QAfternoon = Math.max(20.0, parseFloat(document.getElementById('cr_Q_afternoon')?.value || '150.0'));
 
     const baseStudents = createStudentRoster();
     const totalN = baseStudents.length;
@@ -1489,6 +1493,7 @@
         return {
           ...st,
           status,
+          hasVaccine: st.hasVaccine,
           isInitialF0: day === 0 && initialF0StudentIds.has(st.id),
           dayInfected: infDay,
           risk: 0.0,
@@ -1509,10 +1514,11 @@
             let morningDose = 0.0;
             activeF0Students.forEach(f0 => {
               const distM = Math.sqrt(Math.pow(agent.morningPos.x - f0.morningPos.x, 2) + Math.pow(agent.morningPos.y - f0.morningPos.y, 2));
-              let kdM = 0.20;
-              if (distM < 0.85) kdM = 1.0;
-              else if (distM < 1.6) kdM = 0.70;
-              else if (distM < 2.8) kdM = 0.40;
+              // Hàm suy giảm khoảng cách theo giọt bắn cúm mùa
+              let kdM = 0.10;
+              if (distM <= 1.0) kdM = 1.0;
+              else if (distM <= 2.0) kdM = 0.40;
+              else kdM = 0.10;
 
               morningDose += ((1.0 * p * q * tMorning) / QMorning) * kdM * km * kh;
             });
@@ -1522,20 +1528,27 @@
             let afternoonDose = 0.0;
             activeF0Students.forEach(f0 => {
               const distA = Math.sqrt(Math.pow(agent.afternoonPos.x - f0.afternoonPos.x, 2) + Math.pow(agent.afternoonPos.y - f0.afternoonPos.y, 2));
-              let kdA = 0.20;
-              if (distA < 0.85) kdA = 1.0;
-              else if (distA < 1.6) kdA = 0.70;
-              else if (distA < 2.8) kdA = 0.40;
+              // Hàm suy giảm khoảng cách theo giọt bắn cúm mùa
+              let kdA = 0.10;
+              if (distA <= 1.0) kdA = 1.0;
+              else if (distA <= 2.0) kdA = 0.40;
+              else kdA = 0.10;
 
               afternoonDose += ((1.0 * p * q * tAfternoon) / QAfternoon) * kdA * km * kh;
             });
             const pAfternoon = 1.0 - Math.exp(-afternoonDose);
 
             // C. Combined Daily Probability
-            const pCombined = 1.0 - ((1.0 - pMorning) * (1.0 - pAfternoon));
+            let pCombined = 1.0 - ((1.0 - pMorning) * (1.0 - pAfternoon));
 
-            agent.riskMorning = Math.round(pMorning * 1000) / 10;
-            agent.riskAfternoon = Math.round(pAfternoon * 1000) / 10;
+            // Hiệu quả tiêm phòng cúm: người đã tiêm phòng được giảm 70% nguy cơ lây nhiễm
+            if (agent.hasVaccine) {
+              pCombined *= (1.0 - 0.70);
+            }
+
+            const vacFactor = agent.hasVaccine ? 0.30 : 1.0;
+            agent.riskMorning = Math.round(pMorning * vacFactor * 1000) / 10;
+            agent.riskAfternoon = Math.round(pAfternoon * vacFactor * 1000) / 10;
             agent.riskCombined = Math.round(pCombined * 1000) / 10;
 
             if (day === 0) {
@@ -1782,7 +1795,8 @@
               statusText = 'Đã khỏi';
             }
 
-            const studentLabel = `${studentObj.name}`;
+            const vacBadge = studentObj.hasVaccine ? ' <span title="Đã tiêm phòng vắc xin cúm" style="font-size:0.75rem;">💉</span>' : '';
+            const studentLabel = `${studentObj.name}${vacBadge}`;
 
             html += `
               <div class="seat-box ${stateClass}" 
@@ -1998,6 +2012,7 @@
       <strong>HS ${String(studentObj.id).padStart(2, '0')} - ${escapeHtml(studentObj.name)}</strong>
       <div class="tt-row"><span>Vị trí (${sessionLabel}):</span> <span>${seatKey}</span></div>
       <div class="tt-row"><span>Trạng thái:</span> <span>${statusText}</span></div>
+      <div class="tt-row"><span>💉 Vắc xin cúm:</span> <span style="font-weight:600; color:${studentObj.hasVaccine ? '#86efac' : '#cbd5e1'};">${studentObj.hasVaccine ? 'Đã tiêm (Giảm 70% nguy cơ)' : 'Chưa tiêm phòng'}</span></div>
       <div class="tt-row"><span>Mốc thời gian:</span> <span>Ngày ${currentSimDay} / ${simHorizonDays}</span></div>
       ${studentObj.status === 'HEALTHY' ? `
         <div class="tt-row" style="margin-top:4px; padding-top:4px; border-top:1px dashed rgba(255,255,255,0.2);">

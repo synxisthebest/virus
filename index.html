@@ -546,9 +546,9 @@
               <div class="field-item">
                 <label for="cr_Q_morning">💨 Cấp khí sạch (Thông gió):</label>
                 <select id="cr_Q_morning" style="padding:6px 10px; border:1.5px solid var(--slate-300); border-radius:8px; font-weight:700; font-size:0.85rem; width:100%;">
-                  <option value="450">🟢 Nhiều (Thông gió tốt / Mở cửa)</option>
-                  <option value="300" selected>🟡 Trung bình (Thông gió vừa)</option>
-                  <option value="120">🔴 Ít (Thông gió kém / Phòng kín)</option>
+                  <option value="650">🟢 Nhiều (Thông gió tốt / Mở toang cửa sổ, ACH ~ 4-5 lần/h)</option>
+                  <option value="450" selected>🟡 Trung bình (Thông gió vừa / Mở hé cửa & quạt, ACH ~ 3 lần/h)</option>
+                  <option value="150">🔴 Ít (Thông gió kém / Phòng kín máy lạnh, ACH ~ 1 lần/h)</option>
                 </select>
               </div>
               <div class="field-item">
@@ -571,9 +571,9 @@
               <div class="field-item">
                 <label for="cr_Q_afternoon">💨 Cấp khí sạch (Thông gió):</label>
                 <select id="cr_Q_afternoon" style="padding:6px 10px; border:1.5px solid var(--slate-300); border-radius:8px; font-weight:700; font-size:0.85rem; width:100%;">
-                  <option value="450">🟢 Nhiều (Thông gió tốt / Mở cửa)</option>
-                  <option value="300">🟡 Trung bình (Thông gió vừa)</option>
-                  <option value="120" selected>🔴 Ít (Thông gió kém / Phòng kín)</option>
+                  <option value="650">🟢 Nhiều (Thông gió tốt / Mở toang cửa sổ, ACH ~ 4-5 lần/h)</option>
+                  <option value="450">🟡 Trung bình (Thông gió vừa / Mở hé cửa & quạt, ACH ~ 3 lần/h)</option>
+                  <option value="150" selected>🔴 Ít (Thông gió kém / Phòng kín máy lạnh, ACH ~ 1 lần/h)</option>
                 </select>
               </div>
               <div class="field-item">
@@ -585,7 +585,7 @@
         </div>
 
 
-        <!-- Global Parameters Quick Bar (Mask & Quanta) -->
+        <!-- Global Parameters Quick Bar (Mask & Quanta & Vaccine) -->
         <div class="cr-env-bar" style="margin-top:14px;">
           <div class="cr-env-item">
             <span>🎭 Biện pháp khẩu trang:</span>
@@ -599,7 +599,17 @@
 
           <div class="cr-env-item">
             <span>🗣️ Tốc độ phát tán virus:</span>
-            <input type="number" id="cr_q" value="10" min="2" max="100" step="2" style="width:65px;" title="Học bài & thở bình thường (10 quanta/h)"> <span>quanta/h</span>
+            <input type="number" id="cr_q" value="5" min="1" max="50" step="1" style="width:65px;" title="Cúm mùa: Thở/nghe giảng (2-4 quanta/h), ho/nói to (10-15 quanta/h)"> <span>quanta/h</span>
+          </div>
+
+          <div class="cr-env-item">
+            <span>💉 Tiêm phòng cúm / Kháng thể:</span>
+            <select id="cr_vaccine_rate">
+              <option value="0.0">0% (Chưa tiêm phòng)</option>
+              <option value="0.30" selected>30% (Tiêm cúm mùa thông thường)</option>
+              <option value="0.50">50% (Tiêm chủng diện rộng)</option>
+              <option value="0.70">70% (Bao phủ vắc xin cao)</option>
+            </select>
           </div>
 
           <div class="cr-env-item">
@@ -1137,24 +1147,29 @@
       daysToPredict = Math.max(7, Math.min(30, parseInt(daysToPredict) || 14));
 
       var students = [];
+      var vaccineRate = parseFloat(document.getElementById('cr_vaccine_rate')?.value || '0.30');
       for (var i = 1; i <= TOTAL_POPULATION; i++) {
         var isInitF0 = (i <= initialF0Count);
+        // Phân bổ tỷ lệ tiêm vắc xin / có kháng thể nền
+        var hasVaccine = !isInitF0 && (((i * 17 + 11) % 100) < Math.round(vaccineRate * 100));
         students.push({
           id: i,
+          hasVaccine: hasVaccine,
           dayInfected: isInitF0 ? -2 : null // F0 ủ bệnh trước 2 ngày, phát bệnh ngày 0 trong lớp
         });
       }
 
       var tMorning = parseFloat(document.getElementById('cr_t_morning')?.value || '4.0');
-      var QMorning = Math.max(20.0, parseFloat(document.getElementById('cr_Q_morning')?.value || '380.0'));
+      var QMorning = Math.max(20.0, parseFloat(document.getElementById('cr_Q_morning')?.value || '450.0'));
       var tAfternoon = parseFloat(document.getElementById('cr_t_afternoon')?.value || '3.5');
-      var QAfternoon = Math.max(20.0, parseFloat(document.getElementById('cr_Q_afternoon')?.value || '200.0'));
+      var QAfternoon = Math.max(20.0, parseFloat(document.getElementById('cr_Q_afternoon')?.value || '150.0'));
       var km = parseFloat(document.getElementById('cr_km')?.value || '1.0');
-      var q = parseFloat(document.getElementById('cr_q')?.value || '10.0');
+      var q = parseFloat(document.getElementById('cr_q')?.value || '5.0');
       var p = 0.50;
 
-      var dose = (((p * q * tMorning) / QMorning) + ((p * q * tAfternoon) / QAfternoon)) * km * 0.65;
-      var pTrans = Math.min(0.28, Math.max(0.04, 1.0 - Math.exp(-dose)));
+      // Hệ số suy giảm trung bình theo khoảng cách không gian (kd: cùng bàn 1.0, liền kề 0.4, xa 0.1)
+      var dose = (((p * q * tMorning) / QMorning) + ((p * q * tAfternoon) / QAfternoon)) * km * 0.30;
+      var pTransBase = Math.min(0.25, Math.max(0.01, 1.0 - Math.exp(-dose)));
 
       var snapshots = [];
       var cumulativeSet = new Set();
@@ -1208,10 +1223,12 @@
         }
 
         if (infectiousInClass > 0 && day < daysToPredict) {
-          var pClassInfect = 1.0 - Math.pow(1.0 - pTrans, infectiousInClass);
           for (var h = 0; h < TOTAL_POPULATION; h++) {
             if (students[h].dayInfected === null) {
-              if (prng() < pClassInfect) {
+              // Người có kháng thể / đã tiêm vắc xin giảm 70% nguy cơ lây nhiễm
+              var effectivePTrans = students[h].hasVaccine ? (pTransBase * (1.0 - 0.70)) : pTransBase;
+              var pStudentInfect = 1.0 - Math.pow(1.0 - effectivePTrans, infectiousInClass);
+              if (prng() < pStudentInfect) {
                 students[h].dayInfected = day;
                 cumulativeSet.add(students[h].id);
               }

@@ -1082,6 +1082,7 @@
       now.setHours(0, 0, 0, 0);
       seedRecords.push({
         date: fmtDate(now),
+        day: 0,
         dayIndex: 0,
         cases: 1,
         new_cases_daily: 1,
@@ -1214,12 +1215,6 @@
         var newCasesToday = 0;
         if (day === 0) {
           newCasesToday = initialF0Count;
-        } else {
-          for (var k = 0; k < TOTAL_POPULATION; k++) {
-            if (students[k].dayInfected === day) {
-              newCasesToday++;
-            }
-          }
         }
 
         if (infectiousInClass > 0 && day < daysToPredict) {
@@ -1231,6 +1226,9 @@
               if (prng() < pStudentInfect) {
                 students[h].dayInfected = day;
                 cumulativeSet.add(students[h].id);
+                if (day > 0) {
+                  newCasesToday++;
+                }
               }
             }
           }
@@ -1243,6 +1241,7 @@
 
         snapshots.push({
           day: day,
+          dayIndex: day,
           new_cases_daily: newCasesToday,
           active_cases: activeCasesToday,
           isolated_cases: isolatedCasesToday,
@@ -1271,25 +1270,56 @@
       startDate.setHours(0, 0, 0, 0);
 
       var snapshots = [];
-      var isSnapList = Array.isArray(recordsOrSnapshots) &&
-                       recordsOrSnapshots.length > 0 &&
-                       typeof recordsOrSnapshots[0].new_cases_daily !== 'undefined';
+      var hasMultiRecords = Array.isArray(recordsOrSnapshots) && recordsOrSnapshots.length > 1;
 
-      if (isSnapList) {
-        snapshots = recordsOrSnapshots;
+      if (hasMultiRecords) {
+        snapshots = recordsOrSnapshots.map(function(s) {
+          var dayVal = (typeof s.day === 'number') ? s.day : ((typeof s.dayIndex === 'number') ? s.dayIndex : null);
+          if (dayVal === null && s.date) {
+            var dObj = new Date(s.date);
+            dObj.setHours(0, 0, 0, 0);
+            dayVal = Math.round((dObj - startDate) / (1000 * 60 * 60 * 24));
+          }
+          if (dayVal === null || isNaN(dayVal)) dayVal = 0;
+          return {
+            day: dayVal,
+            dayIndex: dayVal,
+            new_cases_daily: typeof s.new_cases_daily !== 'undefined' ? s.new_cases_daily : (s.cases || 0),
+            active_cases: typeof s.active_cases !== 'undefined' ? s.active_cases : (s.cases || 0),
+            recovered_cases: typeof s.recovered_cases !== 'undefined' ? s.recovered_cases : 0,
+            cumulative_cases: typeof s.cumulative_cases !== 'undefined' ? s.cumulative_cases : (s.cases || 0),
+            healthy_cases: typeof s.healthy_cases !== 'undefined' ? s.healthy_cases : Math.max(0, totalStudents - (s.cumulative_cases || s.cases || 0))
+          };
+        });
+        snapshots.sort(function(a, b) { return a.day - b.day; });
       } else {
         var initF0 = 1;
         if (Array.isArray(recordsOrSnapshots) && recordsOrSnapshots.length > 0) {
-          var d0 = recordsOrSnapshots.find(function(r) { return isDateToday(r.date) || r.dayIndex === 0; });
-          if (d0 && d0.cases > 0) initF0 = Math.min(5, d0.cases);
+          var d0 = recordsOrSnapshots.find(function(r) { return isDateToday(r.date) || r.dayIndex === 0 || r.day === 0; });
+          if (d0 && (d0.cases > 0 || d0.active_cases > 0)) {
+            initF0 = Math.min(5, d0.cases || d0.active_cases || 1);
+          }
         }
         snapshots = simulateSEIRCohort(horizon, initF0);
       }
 
       // Cắt gọn timeline: chỉ giữ từ Ngày 0 đến hết khoảng dự báo horizon
       var trimmed = snapshots.filter(function(s) {
-        return s.day >= 0 && s.day <= horizon;
+        var d = (typeof s.day === 'number') ? s.day : s.dayIndex;
+        return typeof d === 'number' && d >= 0 && d <= horizon;
       });
+
+      // Nếu dữ liệu chưa đủ bao phủ hết horizon, bổ sung từ mô phỏng SEIR
+      if (trimmed.length < 2) {
+        var initF0Count = 1;
+        if (trimmed.length === 1 && (trimmed[0].active_cases > 0 || trimmed[0].new_cases_daily > 0)) {
+          initF0Count = Math.min(5, trimmed[0].active_cases || trimmed[0].new_cases_daily || 1);
+        }
+        snapshots = simulateSEIRCohort(horizon, initF0Count);
+        trimmed = snapshots.filter(function(s) {
+          return s.day >= 0 && s.day <= horizon;
+        });
+      }
 
       var dayData = trimmed.map(function(s) {
         var d = new Date(startDate);
@@ -1391,6 +1421,7 @@
 
         updatedRecords.push({
           date: fKey,
+          day: snap.day,
           dayIndex: snap.day,
           cases: snap.active_cases,
           new_cases_daily: snap.new_cases_daily,
@@ -1443,6 +1474,7 @@
         futureD.setDate(futureD.getDate() + snap.day);
         return {
           date: fmtDate(futureD),
+          day: snap.day,
           dayIndex: snap.day,
           cases: snap.active_cases,
           new_cases_daily: snap.new_cases_daily,
@@ -1635,55 +1667,12 @@
       // Đảm bảo cấu trúc mảng luôn hợp lệ, không chứa undefined/null/NaN
       if (!chartData || !Array.isArray(chartData.shortLabels) || chartData.shortLabels.length === 0) {
         var fallbackHorizon = horizon || 14;
-        var fallbackLabels = [];
-        var fallbackShortLabels = [];
-        var fallbackActive = [];
-        var fallbackNew = [];
-        var fallbackCum = [];
-        var fallbackRec = [];
-        var fallbackDayData = [];
-        for (var fi = 0; fi <= fallbackHorizon; fi++) {
-          fallbackLabels.push(fi === 0 ? "Ngày 0 (F0 xuất hiện)" : "Ngày " + fi);
-          fallbackShortLabels.push(fi === 0 ? "Ngày 0 (F0)" : "N" + fi);
-          var fAct = fi === 0 ? 1 : Math.min(10, Math.round(1 + fi * 1.2));
-          fallbackActive.push(fAct);
-          fallbackNew.push(fi === 0 ? 1 : (fi <= 4 ? 2 : 0));
-          fallbackCum.push(Math.min(40, Math.max(1, fi * 2)));
-          fallbackRec.push(fi > 7 ? fi - 7 : 0);
-          fallbackDayData.push({
-            dayIndex: fi,
-            label: fi === 0 ? "Ngày 0 (F0 xuất hiện)" : "Ngày " + fi,
-            shortLabel: fi === 0 ? "Ngày 0 (F0)" : "N" + fi,
-            dateStr: fi + "/09",
-            active_cases: fAct,
-            new_cases_daily: fi === 0 ? 1 : 1,
-            cumulative_cases: Math.min(40, fi + 1),
-            recovered_cases: fi > 7 ? 2 : 0,
-            healthy_cases: 40 - Math.min(40, fi + 1),
-            isToday: fi === 0,
-            isFuture: fi > 0
-          });
-        }
-        chartData = {
-          labels: fallbackLabels,
-          shortLabels: fallbackShortLabels,
-          dates: fallbackShortLabels,
-          dayData: fallbackDayData,
-          active_cases: fallbackActive,
-          new_cases_daily: fallbackNew,
-          cumulative_cases: fallbackCum,
-          recovered_cases: fallbackRec,
-          healthy_cases: fallbackActive.map(function(v) { return 40 - v; }),
-          stats: {
-            totalPopulation: 40,
-            cumulativeCases: Math.min(40, fallbackCum[fallbackCum.length - 1]),
-            peakActiveCases: Math.max.apply(null, fallbackActive),
-            peakDay: 5,
-            totalRecovered: fallbackRec[fallbackRec.length - 1],
-            maxAbsent: Math.max.apply(null, fallbackActive),
-            avgNewCasesPerDay: "1.2"
-          }
-        };
+        var simFallback = simulateSEIRCohort(fallbackHorizon, 1);
+        chartData = prepareChartData(simFallback, {
+          horizon: fallbackHorizon,
+          viewMetric: currentChartMetric,
+          totalStudents: 40
+        });
       }
 
       // Checklist Yêu cầu 1: Thêm console.log dữ liệu chuẩn hóa trước khi vẽ
